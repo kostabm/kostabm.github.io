@@ -399,7 +399,7 @@ const GLB={};
 function loadGLB(url){if(GLB[url])return;GLB[url]={scene:null};new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(url,g=>{GLB[url].scene=g.scene;
   if(P&&P.glb===url&&CAR)setCar(carIdx);NET.players&&NET.players.forEach(p=>{if(p.obj&&CARS[p.c]&&CARS[p.c].glb===url){scene.remove(p.obj.g);p.obj=null}})},undefined,e=>console.warn('car model failed',e))}
 CARS.forEach(c=>c.glb&&loadGLB(c.glb));
-const toF32=geo=>{const g=new THREE.BufferGeometry();for(const k in geo.attributes){const a=geo.attributes[k],n=a.count,is=a.itemSize,arr=new Float32Array(n*is);for(let i=0;i<n;i++)for(let j=0;j<is;j++)arr[i*is+j]=a.getComponent(i,j);g.setAttribute(k,new THREE.BufferAttribute(arr,is))}
+const toF32=geo=>{const g=new THREE.BufferGeometry();for(const k in geo.attributes){const a=geo.attributes[k],n=a.count,is=a.itemSize,arr=new Float32Array(n*is);const gt=[i=>a.getX(i),i=>a.getY(i),i=>a.getZ(i),i=>a.getW(i)];for(let i=0;i<n;i++)for(let j=0;j<is;j++)arr[i*is+j]=gt[j](i);g.setAttribute(k,new THREE.BufferAttribute(arr,is))}
   if(geo.index)g.setIndex(Array.from(geo.index.array));return g};
 function glbCar(S,color,C){const src=GLB[S.glb].scene,root=new THREE.Group(),dy=S.wr-.304;src.updateMatrixWorld(true);
   const paint=new THREE.MeshPhysicalMaterial({color,metalness:.12,roughness:.4,clearcoat:1,clearcoatRoughness:.04,envMapIntensity:.6});
@@ -422,7 +422,7 @@ function glbCar(S,color,C){const src=GLB[S.glb].scene,root=new THREE.Group(),dy=
     const m=new THREE.Matrix4().copy(tgt.matrixWorld).invert().multiply(lift).multiply(o.matrixWorld);m.decompose(cl.position,cl.quaternion,cl.scale);tgt.add(cl)});
   C.model.add(root);C.body.visible=false;C.piv4.forEach(p=>p.visible=false);
   return Object.assign(C,{wheels,pivots,piv4:piv,loose:[],glbPaint:paint,tlM:brake||C.tlM,discM:disc||C.discM,dentGeos:[]})}
-function buildCar(S,color){if(S.glb&&GLB[S.glb]&&GLB[S.glb].scene)return glbCar(S,color,buildCarProc(S,color));return buildCarProc(S,color)}
+function buildCar(S,color){if(S.glb&&GLB[S.glb]&&GLB[S.glb].scene){try{return glbCar(S,color,buildCarProc(S,color))}catch(e){console.warn('car model failed, using built-in body',e);GLB[S.glb].scene=null}}return buildCarProc(S,color)}
 function buildCarProc(S,color){
   const g=new THREE.Group(),model=new THREE.Group(),body=new THREE.Group();g.add(model);model.add(body);model.position.z=S.a-S.wbF;
   const L=S.len/2,W=S.wid,b=S.belt;
@@ -1450,7 +1450,7 @@ function loop(now){film.uniforms.t.value=now*.001%100;const dt=Math.min(.033,(no
   requestAnimationFrame(loop)}
 $('load').remove();$('menu').style.display='flex';
 requestAnimationFrame(loop);
-window.__game={setMap:k=>setMap(k),get dmg(){return dmg},step(n){for(let i=0;i<n;i++)update(1/60)},get state(){return state},get map(){return MAP},get car(){return car},K,get score(){return score},get cur(){return cur},start,setCar,
+window.__game={setMap:k=>setMap(k),get dmg(){return dmg},step(n){for(let i=0;i<n;i++)update(1/60)},get state(){return state},get map(){return MAP},get carObj(){return CAR},get car(){return car},K,get score(){return score},get cur(){return cur},start,setCar,
   get info(){return {gear,rpm:rpm|0,wR:+wR.toFixed(1),beta:+beta.toFixed(2),sigR:+sigR.toFixed(2)}},setAssist(v){assist=v},enterRoom,get net(){return {host:NET.host,room:NET.room,players:[...NET.players.values()].map(p=>({n:p.n,x:p.x|0,z:p.z|0,c:p.c,has:!!p.obj}))}}};
 </script>
 </body>
