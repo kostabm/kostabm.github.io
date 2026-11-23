@@ -72,7 +72,7 @@ a{color:#e2e4f0;font-size:14px}
   <div class="modes"><button id="free">FREE DRIVE</button><button id="multi" class="ghost">👥 MULTIPLAYER</button><button id="chal" class="ghost">2-MIN CHALLENGE</button></div>
   <label class="tog"><input type="checkbox" id="assist" checked> Drift assist (auto counter-steer &amp; launch control)</label>
   <div id="keys">↑ / W gas · ↓ / S brake &amp; reverse · ← → / A D steer · SPACE handbrake · C / V change view · R repair · M mute · ESC menu<br>Free Drive has no timer &mdash; drift as long as you like. Keep the slide going to grow your combo.</div>
-  <div id="credit" style="font-size:11px;opacity:.6;margin-top:6px">911 GT3 RS model: <a href="https://sketchfab.com/3d-models/porsche-gt3-rs-e738eae819c34d19a31dd066c45e0f3d" target="_blank" rel="noopener">“Porsche GT3 RS”</a> by Black Snow, <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> (compressed for the web)</div>
+  <div id="credit" style="font-size:11px;opacity:.6;margin-top:6px">911 GT3 RS model: <a href="https://sketchfab.com/3d-models/porsche-gt3-rs-e738eae819c34d19a31dd066c45e0f3d" target="_blank" rel="noopener">“Porsche GT3 RS”</a> by Black Snow, <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> (compressed for the web) · South Lake Tahoe terrain: AWS Terrain Tiles (USGS 3DEP) · Imagery: <a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless</a> by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2016), CC BY 4.0</div>
   <a href="./">← back to Kosta's Games</a>
 </div>
 <button id="pause">☰ Menu</button><button id="viewBtn">🎥 Chase</button>
@@ -114,7 +114,7 @@ let seed=7;const R=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646}
 const TOUCH='ontouchstart' in window, LOW=TOUCH||Math.min(innerWidth,innerHeight)<600;
 
 // ================= renderer =================
-const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.localClippingEnabled=true;
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',logarithmicDepthBuffer:true});renderer.localClippingEnabled=true;
 const mirRT=new THREE.WebGLRenderTarget(320,80);mirRT.texture.repeat.x=-1;mirRT.texture.offset.x=1;const mirCam=new THREE.PerspectiveCamera(30,4,.6,900);let mirN=0;const mirV=new THREE.Vector3(),mirT=new THREE.Vector3();
 renderer.setPixelRatio(Math.min(devicePixelRatio,LOW?1:1.5));renderer.setSize(innerWidth,innerHeight);
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
@@ -692,11 +692,12 @@ TGT=scene;
 const MAPS={};let MAP=null,mapKey='city';
 function grpFor(){const g=new THREE.Group();scene.add(g);return g}
 function noiseTex(base,spots,n,size=512){return ctex(size,size,(g,w,h)=>{g.fillStyle=base;g.fillRect(0,0,w,h);for(let i=0;i<n;i++){const c=spots[rnd()*spots.length|0];g.fillStyle=c;g.globalAlpha=.25+rnd()*.5;const r=1+rnd()*3;g.fillRect(rnd()*w,rnd()*h,r,r)}g.globalAlpha=1},true)}
+let RIB_Y=null;
 function ribbon(pts,o0,o1,y,mat,vScale=7,uScale=1,closed=true){// strip between lateral offsets o0..o1 along a sampled centre line
   const pos=[],uv=[],idx=[];let dist=0;const N=pts.length;
   for(let i=0;i<=(closed?N:N-1);i++){const p=pts[i%N],q=pts[closed?(i+1)%N:Math.min(i+1,N-1)],m=pts[closed?(i-1+N)%N:Math.max(i-1,0)];const tx=q.x-m.x,tz=q.z-m.z,l=Math.hypot(tx,tz)||1,nx=tz/l,nz=-tx/l;
     if(i>0)dist+=Math.hypot(p.x-pts[(i-1)%N].x,p.z-pts[(i-1)%N].z);
-    pos.push(p.x+nx*o0,y,p.z+nz*o0,p.x+nx*o1,y,p.z+nz*o1);uv.push(0,dist/vScale,uScale,dist/vScale)}
+    {const ax=p.x+nx*o0,az=p.z+nz*o0,bx=p.x+nx*o1,bz=p.z+nz*o1;pos.push(ax,y+(RIB_Y?RIB_Y(ax,az):0),az,bx,y+(RIB_Y?RIB_Y(bx,bz):0),bz)}uv.push(0,dist/vScale,uScale,dist/vScale)}
   for(let i=0;i<(closed?N:N-1);i++){const k=i*2;idx.push(k,k+2,k+1,k+1,k+2,k+3)}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();
   const m=new THREE.Mesh(g,mat);m.receiveShadow=true;TGT.add(m);return m}
@@ -950,7 +951,7 @@ function lakeWater(y,size,color){let w;
 // wooden power poles with sagging lines along a road
 function powerLines(pts,off,every=24){const N=pts.length,poles=[],arms=[],tops=[];
   for(let i=0;i<N;i+=every){const p=pts[i],q=pts[(i+1)%N],tx=q.x-p.x,tz=q.z-p.z,l=Math.hypot(tx,tz)||1,nx=tz/l,nz=-tx/l,x=p.x+nx*off,z=p.z+nz*off,a=Math.atan2(tx,tz);
-    poles.push([x,5.5,z,a]);arms.push([x,10.4,z,a]);tops.push([[x+nx*1.1,10.55,z+nz*1.1],[x,10.55,z],[x-nx*1.1,10.55,z-nz*1.1]])}
+    const gy=RIB_Y?RIB_Y(x,z):0;poles.push([x,gy+5.5,z,a]);arms.push([x,gy+10.4,z,a]);tops.push([[x+nx*1.1,gy+10.55,z+nz*1.1],[x,gy+10.55,z],[x-nx*1.1,gy+10.55,z-nz*1.1]])}
   inst(new THREE.CylinderGeometry(.13,.17,11,7),new THREE.MeshStandardMaterial({color:0x5b4636,roughness:.95}),poles,true);
   inst(new THREE.BoxGeometry(2.6,.14,.14),new THREE.MeshStandardMaterial({color:0x4d3b2e,roughness:.95}),arms,true);
   const v=[];for(let i=0;i<tops.length;i++){const A=tops[i],B=tops[(i+1)%tops.length];for(let w=0;w<3;w++){const a=A[w],b=B[w];let pr=a;
@@ -965,7 +966,7 @@ function highway(pts,half,roadM){const N=pts.length;
   ribbon(pts,.08,.2,.021,yellowM,10,1);ribbon(pts,-.2,-.08,.021,yellowM,10,1)}
 function signTex(w,h,draw){const t=ctex(w,h,draw);t.anisotropy=8;return t}
 
-function buildTahoe(){const g=grpFor();TGT=g;
+function buildTahoeProc(){const g=grpFor();TGT=g;
   // south shore: lake to the north (−z), forested basin and the Sierra to the south, ski runs on the mountain to the south-east
   const shoreZ=x=>-150+30*Math.sin(x/170+.5)+14*Math.sin(x/63+2);
   const lakeS=(x,z)=>Math.min(shoreZ(x)-z,z+6400,3600-Math.abs(x)+350*Math.sin(z/800));// >0 = in the lake
@@ -1057,6 +1058,149 @@ function buildTahoe(){const g=grpFor();TGT=g;
   const tick=dt=>{water.tick(dt);const t=performance.now()*.001;boats.forEach(b=>{b.position.y=-.25+Math.sin(t*1.3+b.userData.ph)*.06;b.rotation.z=Math.sin(t*1.1+b.userData.ph)*.03})};
   return {name:'South Lake Tahoe',g,boxes,segs:[],circ,hx:2600,hz:2600,spawn:[sp.x,sp.z,Math.atan2(sq.x-sp.x,sq.z-sp.z)],light:'alpine',far:16000,fogD:.00021,surf,corr:RF,corrMax:24,tick,pre,pts}}
 
+// ================= real South Lake Tahoe: elevation data + satellite imagery =================
+// Elevation: AWS Terrain Tiles (USGS 3DEP and other public sources), baked to maps/tahoe_dem.png (0.25 m steps, lake level = 0).
+// Imagery: Sentinel-2 cloudless 2016 by EOX IT Services (CC BY 4.0), loaded at runtime.
+const DEM={ready:false,failed:false,w:0,h:0,data:null,OX:955,OY:1364,S:29.72};
+DEM.promise=fetch('maps/tahoe_dem.png').then(r=>{if(!r.ok)throw new Error(r.status);return r.blob()}).then(b=>createImageBitmap(b,{colorSpaceConversion:'none',premultiplyAlpha:'none'})).then(bm=>{
+  const c=document.createElement('canvas');c.width=bm.width;c.height=bm.height;const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(bm,0,0);
+  const d=g.getImageData(0,0,bm.width,bm.height).data,a=new Float32Array(bm.width*bm.height);for(let i=0;i<a.length;i++)a[i]=((d[i*4]<<8)|d[i*4+1])/4-450;
+  Object.assign(DEM,{w:bm.width,h:bm.height,data:a,ready:true})}).catch(e=>{DEM.failed=true;console.warn('terrain data failed',e)});
+const demH=(x,z)=>{const fx=x/DEM.S+DEM.OX-.5,fz=z/DEM.S+DEM.OY-.5,i=Math.floor(fx),j=Math.floor(fz);if(i<0||j<0||i>=DEM.w-1||j>=DEM.h-1)return 900;
+  const u=fx-i,v=fz-j,k=j*DEM.w+i,a=DEM.data;return (a[k]*(1-u)+a[k+1]*u)*(1-v)+(a[k+DEM.w]*(1-u)+a[k+DEM.w+1]*u)*v};
+function satImagery(){const W=7*256,Hh=8*256,c=document.createElement('canvas');c.width=W;c.height=Hh;const g=c.getContext('2d');g.fillStyle='#596349';g.fillRect(0,0,W,Hh);
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.flipY=false;t.anisotropy=8;const on={value:0};let n=0;
+  for(let x=679;x<=685;x++)for(let y=1561;y<=1568;y++){const im=new Image();im.crossOrigin='anonymous';
+    im.onload=()=>{g.drawImage(im,(x-679)*256,(y-1561)*256);t.needsUpdate=true;if(++n>=6)on.value=1};
+    im.src=`https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/12/${y}/${x}.jpg`}
+  return {t,on}}
+function roadFieldMulti(shapes,R=110,cs=2.5){// like roadField, for several open/closed polylines
+  let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;shapes.forEach(sh=>sh.pts.forEach(p=>{x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);z0=Math.min(z0,p.z);z1=Math.max(z1,p.z)}));
+  x0-=R;z0-=R;x1+=R;z1+=R;const nx=Math.ceil((x1-x0)/cs)+1,nz=Math.ceil((z1-z0)/cs)+1,g=new Float32Array(nx*nz).fill(R*R),rc=Math.ceil(R/cs);
+  shapes.forEach(({pts,closed})=>{const N=pts.length;for(let i=0;i<(closed?N:N-1);i++){const a=pts[i],b=pts[(i+1)%N],l=Math.hypot(b.x-a.x,b.z-a.z),st=Math.max(1,Math.ceil(l/cs));
+    for(let k=0;k<=st;k++){const px=a.x+(b.x-a.x)*k/st,pz=a.z+(b.z-a.z)*k/st,ci=Math.round((px-x0)/cs),cj=Math.round((pz-z0)/cs);
+      for(let j=Math.max(0,cj-rc),je=Math.min(nz-1,cj+rc);j<=je;j++){const dz=z0+j*cs-pz,dz2=dz*dz,row=j*nx;
+        for(let q=Math.max(0,ci-rc),qe=Math.min(nx-1,ci+rc);q<=qe;q++){const dx=x0+q*cs-px,d=dx*dx+dz2;if(d<g[row+q])g[row+q]=d}}}}});
+  for(let i=0;i<g.length;i++)g[i]=Math.sqrt(g[i]);
+  return {R,d(x,z){const fx=(x-x0)/cs,fz=(z-z0)/cs;if(fx<0||fz<0||fx>=nx-1||fz>=nz-1)return R;const i=fx|0,j=fz|0,u=fx-i,v=fz-j,k=j*nx+i;
+    return (g[k]*(1-u)+g[k+1]*u)*(1-v)+(g[k+nx]*(1-u)+g[k+nx+1]*u)*v}}}
+
+function buildTahoe(){if(!DEM.ready)return buildTahoeProc();
+  const g=grpFor();TGT=g;
+  // smoothed ground for the roads (real grades, no 30 m stair-steps)
+  const GX0=-3600,GZ0=-1900,GC=10,GNX=721,GNZ=521,Gs=new Float32Array(GNX*GNZ);
+  for(let j=0;j<GNZ;j++)for(let i=0;i<GNX;i++)Gs[j*GNX+i]=Math.max(.6,demH(GX0+i*GC,GZ0+j*GC));
+  const blur=(a,r)=>{const t=new Float32Array(a.length);for(let j=0;j<GNZ;j++)for(let i=0;i<GNX;i++){let s=0,n=0;for(let k=-r;k<=r;k++){const q=i+k;if(q>=0&&q<GNX){s+=a[j*GNX+q];n++}}t[j*GNX+i]=s/n}
+    for(let j=0;j<GNZ;j++)for(let i=0;i<GNX;i++){let s=0,n=0;for(let k=-r;k<=r;k++){const q=j+k;if(q>=0&&q<GNZ){s+=t[q*GNX+i];n++}}a[j*GNX+i]=s/n}};
+  blur(Gs,6);blur(Gs,6);
+  const G=(x,z)=>{const fx=(x-GX0)/GC,fz=(z-GZ0)/GC;if(fx<0||fz<0||fx>=GNX-1||fz>=GNZ-1)return Math.max(.6,demH(x,z));const i=fx|0,j=fz|0,u=fx-i,v=fz-j,k=j*GNX+i;
+    return (Gs[k]*(1-u)+Gs[k+1]*u)*(1-v)+(Gs[k+GNX]*(1-u)+Gs[k+GNX+1]*u)*v};
+  // roads: lakeshore boulevard + highway back through town, and the Mt Diablo Cir neighbourhood loop
+  const RP=[[-2467,238],[-2229,238],[-1991,327],[-1753,365],[-1516,310],[-1278,170],[-1040,-89],[-802,-174],[-565,-259],[-327,-314],[-89,-399],[149,-488],[386,-573],[624,-650],[862,-701],[1100,-722],[1337,-751],[1575,-790],[1813,-845],[2051,-900],[2288,-951],[2526,-985],[2705,238],[2526,951],[1932,1367],[1040,1456],[149,1397],[-743,1337],[-1635,1248],[-2229,981],[-2645,654]];
+  const curve=new THREE.CatmullRomCurve3(RP.map(([x,z])=>new THREE.Vector3(x,0,z)),true,'centripetal');
+  const N=Math.round(curve.getLength()/2),pts=curve.getSpacedPoints(N);pts.pop();
+  let ci=0,cd=1e9;pts.forEach((p,i)=>{const d=Math.hypot(p.x+300,p.z-1370);if(d<cd){cd=d;ci=i}});const C0=pts[ci];
+  const NC={x:C0.x+15,z:C0.z+260},NR=58;
+  const conn=[];for(let k=0;k<=40;k++){const t=k/40;conn.push(new THREE.Vector3(C0.x+(NC.x-C0.x)*t,0,C0.z+(NC.z-NR-C0.z)*t))}
+  const circ=[];for(let k=0;k<72;k++){const a=k/72*Math.PI*2-Math.PI/2;circ.push(new THREE.Vector3(NC.x+Math.cos(a)*NR,0,NC.z+Math.sin(a)*NR))}
+  const RF=roadFieldMulti([{pts,closed:true},{pts:conn,closed:false},{pts:circ,closed:true}],110,2.5);
+  const H=(x,z)=>{const rd=RF.d(x,z),t=sstep(24,110,rd),r=demH(x,z);if(t<=0)return G(x,z);const det=r>2?fbm(x/70,z/70,3)*2.2*sstep(2,12,r):0;return G(x,z)*(1-t)+(r+det)*t};
+  const gy=(x,z)=>G(x,z)+.05;
+  // terrain: one mesh out to ~40 km, satellite photo far away, detailed ground near the roads
+  const sat=satImagery(),CX=0,CZ=300,seg=LOW?300:560,A=5000,B=35000,n=seg+1;
+  const mp=u=>Math.sign(u)*(A*Math.abs(u)+B*Math.abs(u)**9);
+  const pos=new Float32Array(n*n*3),uv=new Float32Array(n*n*2),suv=new Float32Array(n*n*2),near=new Float32Array(n*n),idx=new Uint32Array(seg*seg*6);
+  for(let j=0;j<n;j++)for(let i=0;i<n;i++){const x=CX+mp(i/seg*2-1),z=CZ+mp(j/seg*2-1),k=j*n+i,rd=RF.d(x,z);pos[k*3]=x;pos[k*3+1]=H(x,z);pos[k*3+2]=z;uv[k*2]=x/9;uv[k*2+1]=z/9;
+    suv[k*2]=(x/DEM.S+DEM.OX)/1792;suv[k*2+1]=(z/DEM.S+DEM.OY)/2048;near[k]=1-sstep(140,700,rd)}
+  let ti=0;for(let j=0;j<seg;j++)for(let i=0;i<seg;i++){const a=j*n+i,b=a+1,c=a+n,d=c+1;idx[ti++]=a;idx[ti++]=c;idx[ti++]=b;idx[ti++]=b;idx[ti++]=c;idx[ti++]=d}
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('uv',new THREE.BufferAttribute(uv,2));geo.setAttribute('satUv',new THREE.BufferAttribute(suv,2));geo.setAttribute('nearW',new THREE.BufferAttribute(near,1));geo.setIndex(new THREE.BufferAttribute(idx,1));geo.computeVertexNormals();
+  const C={sand:new THREE.Color(0xcfc29e),deep:new THREE.Color(0x2f4a44),floor:new THREE.Color(0x6a5a40),meadow:new THREE.Color(0x8a8350),forest:new THREE.Color(0x26361f),rock:new THREE.Color(0x8e8c86),snow:new THREE.Color(0xf4f7fa)};
+  const nr=geo.attributes.normal,col=new Float32Array(n*n*3),cc=new THREE.Color();
+  for(let k=0;k<n*n;k++){const x=pos[k*3],h=pos[k*3+1],z=pos[k*3+2],ny=nr.getY(k),nn=fbm(x/90,z/90,3);
+    if(h<.3)cc.copy(C.sand).lerp(C.deep,sstep(0,-12,h));else if(h<.9&&RF.d(x,z)>40)cc.copy(C.sand);
+    else{cc.copy(C.floor).lerp(C.meadow,sstep(-.1,.35,nn)*.55).lerp(C.forest,sstep(400,1500,RF.d(x,z)+(1-near[k])*2000)*.85);cc.lerp(C.rock,sstep(.86,.7,ny));const sl=1000+150*fbm(x/600,z/600,3);cc.lerp(C.snow,sstep(sl,sl+150,h)*sstep(.55,.78,ny))}
+    cc.multiplyScalar(.9+nn*.18);col.set([cc.r,cc.g,cc.b],k*3)}
+  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  const tm=new THREE.MeshStandardMaterial({vertexColors:true,map:groundDetail,roughness:.97,envMapIntensity:.5});
+  tm.onBeforeCompile=sh=>{sh.uniforms.satTex={value:sat.t};sh.uniforms.satOn=sat.on;
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute vec2 satUv;attribute float nearW;varying vec2 vSat;varying float vNear;').replace('#include <uv_vertex>','#include <uv_vertex>\nvSat=satUv;vNear=nearW;');
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D satTex;uniform float satOn;varying vec2 vSat;varying float vNear;')
+      .replace('#include <color_fragment>','#include <color_fragment>\n{vec3 st=texture2D(satTex,vSat).rgb;diffuseColor.rgb=mix(diffuseColor.rgb,st*1.25,satOn*(1.0-vNear));}')};
+  const terr=new THREE.Mesh(geo,tm);terr.receiveShadow=true;TGT.add(terr);
+  const water=lakeWater(-.3,120000,0x0b4d63);
+  // roads on the real ground
+  RIB_Y=gy;
+  const roadM=new THREE.MeshStandardMaterial({map:asphalt.clone(),roughness:.95,envMapIntensity:.45,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});roadM.map.repeat.set(1,1);roadM.map.needsUpdate=true;photoTex('asphalt_02',new THREE.Vector2(1,1),roadM,1.2);
+  highway(pts,4.6,roadM);
+  ribbon(conn,-3.6,3.6,.013,roadM,7.2,1,false);ribbon(circ,-3.6,3.6,.013,roadM,7.2,1,true);
+  ribbon(circ,3.35,3.5,.02,paintM,10,1,true);ribbon(circ,-3.5,-3.35,.02,paintM,10,1,true);
+  powerLines(pts,-12.5,22);
+  RIB_Y=null;
+  // landmarks
+  const wood=new THREE.MeshStandardMaterial({color:0x7a5a3c,roughness:.85}),woodD=new THREE.MeshStandardMaterial({color:0x4b3626,roughness:.9}),cl=[],boxes=[];
+  const roadDir=(i)=>{const p=pts[i%N],q=pts[(i+3)%N],l=Math.hypot(q.x-p.x,q.z-p.z);return [(q.x-p.x)/l,(q.z-p.z)/l]};
+  const nearest=(x,z)=>{let bi=0,bd=1e9;pts.forEach((p,i)=>{const d=Math.hypot(p.x-x,p.z-z);if(d<bd){bd=d;bi=i}});return bi};
+  // pier + moored boats where the shore road passes closest to the water
+  let pierX=-330,pz0=-314;for(let z=-314;z>-1400;z-=4){if(demH(pierX,z)<.2){pz0=z+6;break}}
+  const pLen=150;{const d=new THREE.Mesh(new THREE.BoxGeometry(3.2,.22,pLen),wood);d.position.set(pierX,1.0,pz0-pLen/2);d.castShadow=d.receiveShadow=true;TGT.add(d);
+    const posts=[];for(let z=0;z<=pLen;z+=4)[1.5,-1.5].forEach(o=>posts.push([pierX+o,-.2,pz0-z]));inst(new THREE.CylinderGeometry(.13,.13,2.4,7),woodD,posts,true)}
+  const hullG=(()=>{const s=new THREE.Shape();s.moveTo(-1.1,-3);s.lineTo(1.1,-3);s.lineTo(1.15,1.2);s.quadraticCurveTo(.9,3.2,0,4);s.quadraticCurveTo(-.9,3.2,-1.15,1.2);s.closePath();
+    const e=new THREE.ExtrudeGeometry(s,{depth:.95,bevelEnabled:true,bevelThickness:.12,bevelSize:.1,bevelSegments:3,curveSegments:10});e.rotateX(-Math.PI/2);e.translate(0,-.35,0);return e})();
+  const boats=[];[[pierX+5,pz0-40,0xf4f4f2],[pierX-5,pz0-62,0xe9e5da],[pierX+5,pz0-88,0xf4f4f2],[pierX-6,pz0-120,0x1e3d63],[pierX+70,pz0-190,0xf4f4f2],[pierX-140,pz0-260,0xc9302c]].forEach(([x,z,c],i)=>{
+    const b=new THREE.Group(),h=new THREE.Mesh(hullG,new THREE.MeshPhysicalMaterial({color:c,roughness:.25,clearcoat:1}));h.castShadow=true;b.add(h);
+    const st=new THREE.Mesh(new THREE.BoxGeometry(2.36,.12,6.2),new THREE.MeshStandardMaterial({color:0x1a4f8a,roughness:.4}));st.position.set(0,.05,.2);b.add(st);
+    const ws=new THREE.Mesh(new THREE.BoxGeometry(1.9,.5,.06),glassM);ws.position.set(0,.85,1.2);ws.rotation.x=-.5;b.add(ws);
+    b.position.set(x,.1,z);b.rotation.y=i<4?Math.PI/2*(i%2?1:-1):rnd()*6;b.userData.ph=rnd()*6;TGT.add(b);boats.push(b)});
+  // welcome sign at the west end of town
+  const signAt=(i,off,fwd,build)=>{const [tx,tz]=roadDir(i),p=pts[i],x=p.x+tz*off+tx*fwd,z=p.z-tx*off+tz*fwd,o=new THREE.Group();build(o);o.position.set(x,H(x,z),z);o.rotation.y=Math.atan2(tz,-tx)+Math.PI/2;TGT.add(o);cl.push({x,z,r:2.5});return o};
+  {const t=signTex(1024,480,(c,w,h)=>{c.fillStyle='#5b3b22';c.fillRect(0,0,w,h);for(let i=0;i<60;i++){c.strokeStyle=`rgba(${30+rnd()*30},${15+rnd()*15},5,.35)`;c.lineWidth=1+rnd()*3;c.beginPath();const y=rnd()*h;c.moveTo(0,y);c.bezierCurveTo(w*.3,y+(rnd()-.5)*20,w*.7,y+(rnd()-.5)*20,w,y+(rnd()-.5)*10);c.stroke()}
+      c.strokeStyle='#e9dcc0';c.lineWidth=8;c.strokeRect(22,22,w-44,h-44);c.fillStyle='#efe3c6';c.textAlign='center';c.font='600 54px Georgia,serif';c.fillText('WELCOME TO',w/2,128);
+      c.font='bold 112px Georgia,serif';c.fillText('SOUTH LAKE',w/2,262);c.fillText('TAHOE',w/2,378);c.font='italic 34px Georgia,serif';c.fillText('Elev. 6,237 ft',w/2,438)});
+    const fm=new THREE.MeshStandardMaterial({map:t,roughness:.8});
+    signAt(nearest(-2350,238),14,0,o=>{const bd=new THREE.Mesh(new THREE.BoxGeometry(6.4,3,.3),[woodD,woodD,woodD,woodD,fm,fm]);bd.position.y=2.9;bd.castShadow=true;o.add(bd);
+      [-2.7,2.7].forEach(x=>{const p=new THREE.Mesh(new THREE.CylinderGeometry(.24,.28,4.6,10),woodD);p.position.set(x,2.1,0);o.add(p)});const base=new THREE.Mesh(BOULDER[0],graniteMat);base.scale.set(4,.9,1.2);base.position.y=.2;o.add(base)})}
+  // Stateline casino-hotels at the east end
+  const neon=t=>signTex(512,128,(c,w,h)=>{c.fillStyle='#0b0b12';c.fillRect(0,0,w,h);c.shadowColor=t[1];c.shadowBlur=24;c.fillStyle=t[1];c.font='bold 84px system-ui,sans-serif';c.textAlign='center';c.fillText(t[0],w/2,96)});
+  [[2840,-700,36,96,['HOTEL','#ffcf6b']],[2860,-470,30,74,['CASINO','#ff4fa3']],[2830,-250,30,58,['LODGE','#6bd8ff']]].forEach(([x,z,w,h,t])=>{const y=demH(x,z);const geo=new THREE.BoxGeometry(w,h,w);scaleUV(geo,w,h,w,32,32);const m=new THREE.Mesh(geo,glassMat);m.position.set(x,y+h/2,z);m.castShadow=m.receiveShadow=true;TGT.add(m);
+    const pod=new THREE.Mesh(new THREE.BoxGeometry(w+10,9,w+10),shopMat);pod.position.set(x,y+2.5,z);TGT.add(pod);
+    const s=new THREE.Mesh(new THREE.PlaneGeometry(w*.8,w*.2),new THREE.MeshBasicMaterial({map:neon(t),toneMapped:false}));s.position.set(x-w/2-.2,y+h-6,z);s.rotation.y=-Math.PI/2;TGT.add(s)});
+  {const t=signTex(512,256,(c,w,h)=>{c.fillStyle='#0f6b3a';c.fillRect(0,0,w,h);c.strokeStyle='#fff';c.lineWidth=8;c.strokeRect(12,12,w-24,h-24);c.fillStyle='#fff';c.textAlign='center';c.font='bold 64px system-ui,sans-serif';c.fillText('STATELINE',w/2,112);c.font='bold 46px system-ui,sans-serif';c.fillText('NEVADA  ➜',w/2,190)});
+    signAt(nearest(2526,-985),9,-40,o=>{const s=new THREE.Mesh(new THREE.PlaneGeometry(4,2),new THREE.MeshStandardMaterial({map:t,roughness:.5,side:THREE.DoubleSide}));s.position.y=4.2;o.add(s);[-1.4,1.4].forEach(x=>{const p=new THREE.Mesh(new THREE.CylinderGeometry(.08,.08,4.4,8),metal);p.position.set(x,2.2,0);o.add(p)})})}
+  // houses: Tahoe-style wood houses with steep roofs (for the Mt Diablo Cir loop and along the town highway)
+  const sidings=[0x6b4f38,0x5e6a6e,0x7a6a55,0x4f5b4a,0x8a7458,0x56493e],roofM=new THREE.MeshStandardMaterial({color:0x2d2b29,roughness:.85}),trimM=new THREE.MeshStandardMaterial({color:0xe9e4d8,roughness:.7}),winM=new THREE.MeshStandardMaterial({color:0x1b2733,roughness:.15,metalness:.3});
+  const house=(x,z,face)=>{const y=H(x,z),hg=new THREE.Group(),w=9+rnd()*4,d=8+rnd()*3,h=3+rnd()*2.6,wm=new THREE.MeshStandardMaterial({color:sidings[rnd()*sidings.length|0],roughness:.9,map:groundDetail});
+    const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),wm);b.position.y=h/2;b.castShadow=b.receiveShadow=true;hg.add(b);
+    const sh=new THREE.Shape();sh.moveTo(-w/2-.5,0);sh.lineTo(w/2+.5,0);sh.lineTo(0,w*.42);sh.closePath();const rg=new THREE.ExtrudeGeometry(sh,{depth:d+.8,bevelEnabled:false});rg.translate(0,0,-(d+.8)/2);
+    const r=new THREE.Mesh(rg,roofM);r.position.y=h;r.castShadow=true;hg.add(r);const gab=new THREE.Mesh(new THREE.ShapeGeometry(sh),wm);gab.position.set(0,h,d/2+.01);hg.add(gab);
+    const gar=new THREE.Mesh(new THREE.PlaneGeometry(3,2.4),trimM);gar.position.set(-w/4,1.2,d/2+.02);hg.add(gar);
+    [[w/4,1.6],[w/4-1.6,1.6]].forEach(([wx,wy])=>{const wi=new THREE.Mesh(new THREE.PlaneGeometry(1.2,1.1),winM);wi.position.set(wx,wy,d/2+.02);hg.add(wi)});
+    const ch=new THREE.Mesh(new THREE.BoxGeometry(.9,2.6,.9),new THREE.MeshStandardMaterial({color:0x777068,roughness:.95}));ch.position.set(w/3,h+w*.3,0);hg.add(ch);
+    hg.position.set(x,y,z);hg.rotation.y=face;TGT.add(hg);cl.push({x,z,r:Math.max(w,d)*.55})};
+  for(let k=0;k<12;k++){const a=k/12*Math.PI*2+.2;if(Math.abs(Math.atan2(Math.sin(a+Math.PI/2),Math.cos(a+Math.PI/2)))<.35)continue;// leave the entrance clear
+    const r=NR+17,x=NC.x+Math.cos(a)*r,z=NC.z+Math.sin(a)*r;house(x,z,Math.atan2(NC.x-x,NC.z-z))}
+  for(let k=0;k<4;k++){const a=k/4*Math.PI*2+.6,x=NC.x+Math.cos(a)*28,z=NC.z+Math.sin(a)*28;house(x,z,Math.atan2(x-NC.x,z-NC.z))}
+  for(let k=0;k<40;k++){const i=(rnd()*N)|0,p=pts[i];if(p.z<600)continue;const [tx,tz]=roadDir(i),sd=rnd()<.5?1:-1,x=p.x+tz*sd*36,z=p.z-tx*sd*36;if(RF.d(x,z)<30)continue;house(x,z,Math.atan2(-tz*sd,tx*sd))}
+  {const t=signTex(512,128,(c,w,h)=>{c.fillStyle='#106b3c';c.fillRect(0,0,w,h);c.strokeStyle='#fff';c.lineWidth=6;c.strokeRect(8,8,w-16,h-16);c.fillStyle='#fff';c.font='bold 70px system-ui,sans-serif';c.textAlign='center';c.fillText('MT DIABLO CIR',w/2,92)});
+    const x=C0.x+9,z=C0.z+14,o=new THREE.Group(),sm=new THREE.MeshStandardMaterial({map:t,roughness:.5,side:THREE.DoubleSide});
+    const s=new THREE.Mesh(new THREE.PlaneGeometry(2.4,.6),sm);s.position.y=3;o.add(s);const s2=s.clone();s2.rotation.y=Math.PI/2;s2.position.y=2.4;o.add(s2);
+    const p=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,3.3,8),metal);p.position.y=1.65;o.add(p);o.position.set(x,H(x,z),z);TGT.add(o);cl.push({x,z,r:.3})}
+  // forest, grass, granite, shrubs near the roads (satellite imagery covers the far landscape)
+  const tr=[],grs=[],bl=[];const land=(x,z)=>demH(x,z)>.5&&demH(x+25,z)>.2&&demH(x-25,z)>.2&&demH(x,z+25)>.2&&demH(x,z-25)>.2;const clearOf=(x,z,r)=>!cl.some(c=>Math.hypot(c.x-x,c.z-z)<c.r+r);
+  for(let k=0;k<(LOW?1500:3800);k++){const sh=[pts,pts,pts,circ][k%4],p=sh[rnd()*sh.length|0],a=rnd()*6.28,d=9+Math.pow(rnd(),1.5)*420,x=p.x+Math.cos(a)*d,z=p.z+Math.sin(a)*d;
+    const rd=RF.d(x,z);if(rd<9||!land(x,z)||!clearOf(x,z,4))continue;const h=H(x,z);if(slopeAt(H,x,z)<.72)continue;const sc=1.15+rnd()*1.3;tr.push([x,h-.2,z,sc]);if(rd<27)cl.push({x,z,r:.45*sc})}
+  pines2(tr);
+  for(let k=0;k<(LOW?2500:8000);k++){const sh=k%5?pts:circ,p=sh[rnd()*sh.length|0],a=rnd()*6.28,d=6.8+Math.pow(rnd(),1.3)*70,x=p.x+Math.cos(a)*d,z=p.z+Math.sin(a)*d;if(RF.d(x,z)<6.8||!land(x,z))continue;grs.push([x,H(x,z),z,.7+rnd()*.8])}
+  grassTufts(grs);
+  undergrowth(pts,RF,H,(x,z)=>land(x,z)&&clearOf(x,z,2),LOW?700:2200,LOW?40:140);
+  for(let k=0;k<420;k++){const p=pts[rnd()*N|0],a=rnd()*6.28,d=14+rnd()*160,x=p.x+Math.cos(a)*d,z=p.z+Math.sin(a)*d,rd=RF.d(x,z);if(rd<12||!land(x,z)||!clearOf(x,z,2))continue;const sc=.6+Math.pow(rnd(),2)*3.2;bl.push([x,H(x,z)+sc*.15,z,sc]);if(rd<27)cl.push({x,z,r:sc*.9})}
+  boulders(bl);
+  TGT=scene;
+  const surf=(x,z)=>{const rd=RF.d(x,z);return rd<4.7?1:rd<6.9?.8:demH(x,z)<.9?.55:.66};
+  const pre=()=>water.pre&&water.pre();
+  const tick=dt=>{water.tick(dt);const t=performance.now()*.001;boats.forEach(b=>{b.position.y=.1+Math.sin(t*1.3+b.userData.ph)*.06;b.rotation.z=Math.sin(t*1.1+b.userData.ph)*.03})};
+  let si=0,sd2=1e9;pts.forEach((p,i)=>{const d=Math.hypot(p.x+250,p.z+340);if(d<sd2){sd2=d;si=i}});const sp=pts[si],sq=pts[(si+3)%N];
+  return {name:'South Lake Tahoe',g,boxes,segs:[],circ:cl,hx:3600,hz:3600,spawn:[sp.x,sp.z,Math.atan2(sq.x-sp.x,sq.z-sp.z)],light:'alpine',far:60000,fogD:.00006,surf,corr:RF,corrMax:24,tick,pre,pts,gy,real:true}}
+
 const MAPDEF=[['city','🏙️ Downtown',null],['pass','⛰️ Mountain Pass',buildPass],['tahoe','🌲 South Lake Tahoe',buildTahoe],['docks','⚓ Harbor Docks',buildDocks],['air','✈️ Airfield at Night',buildAirfield]];
 const LIGHT={base:null};
 function applyLight(){const b=LIGHT.base;if(!b)return;const t=MAP?MAP.light:'sunset',alp=t==='alpine';
@@ -1068,6 +1212,7 @@ function applyLight(){const b=LIGHT.base;if(!b)return;const t=MAP?MAP.light:'sun
   if(t==='night')sun.color.set(0x8fa8ff);else if(alp)sun.color.set(0xfff1de);else sun.color.copy(b.sunC);
   bloom.strength=t==='night'?.6:alp?.16:.38}
 function setMap(k,silent){const d=MAPDEF.find(m=>m[0]===k)||MAPDEF[0];k=d[0];
+  if(k==='tahoe'&&!DEM.ready&&!DEM.failed&&!MAPS.tahoe){const b=document.querySelector('#maps button[data-m=tahoe]');if(b)b.textContent='Loading real terrain…';DEM.promise.then(()=>{if(b)b.textContent=d[1];setMap(k,silent)});return}
   if(!MAPS[k])MAPS[k]=d[2]();for(const kk in MAPS)MAPS[kk].g.visible=kk===k;MAP=MAPS[k];mapKey=k;applyLight();camera.far=MAP.far||1400;camera.updateProjectionMatrix();
   try{localStorage.setItem('driftMap',k)}catch(e){}
   document.querySelectorAll('#maps button').forEach(b=>b.classList.toggle('on',b.dataset.m===k));
@@ -1095,14 +1240,14 @@ const SK=5000,skPos=new Float32Array(SK*12),skIdx=[];for(let i=0;i<SK;i++){const
 const skGeo=new THREE.BufferGeometry();skGeo.setAttribute('position',new THREE.BufferAttribute(skPos,3));skGeo.setIndex(skIdx);
 const skMesh=new THREE.Mesh(skGeo,new THREE.MeshBasicMaterial({color:0x040404,transparent:true,opacity:.6,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));
 skMesh.frustumCulled=false;scene.add(skMesh);let skI=0;
-function addSkid(x1,z1,x2,z2,w){const dx=x2-x1,dz=z2-z1,l=Math.hypot(dx,dz)||1,nx=-dz/l*w,nz=dx/l*w,y=.025;
-  skPos.set([x1+nx,y,z1+nz,x1-nx,y,z1-nz,x2+nx,y,z2+nz,x2-nx,y,z2-nz],skI*12);skI=(skI+1)%SK;skGeo.attributes.position.needsUpdate=true}
+function addSkid(x1,z1,x2,z2,w){const dx=x2-x1,dz=z2-z1,l=Math.hypot(dx,dz)||1,nx=-dz/l*w,nz=dx/l*w,y=.025,y1=y+gyAt(x1,z1),y2=y+gyAt(x2,z2);
+  skPos.set([x1+nx,y1,z1+nz,x1-nx,y1,z1-nz,x2+nx,y2,z2+nz,x2-nx,y2,z2-nz],skI*12);skI=(skI+1)%SK;skGeo.attributes.position.needsUpdate=true}
 function clearSkids(){skPos.fill(0);skGeo.attributes.position.needsUpdate=true}
 const smokeTex=ctex(128,128,(g,w,h)=>{for(let k=0;k<6;k++){const x=40+rnd()*48,y=40+rnd()*48,r=30+rnd()*25;const gr=g.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,'rgba(255,255,255,.55)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,w,h)}});
 const smokes=[];for(let i=0;i<(LOW?100:200);i++){const m=new THREE.Sprite(new THREE.SpriteMaterial({map:smokeTex,transparent:true,depthWrite:false,opacity:0,color:0xd8d4d0}));m.visible=false;scene.add(m);smokes.push({m,life:0,vx:0,vy:0,vz:0,rs:0})}
 let smI=0;
 function engSmoke(big){const L=P.len/2-.6+(P.a-P.wbF),sn=Math.sin(car.yaw),cs=Math.cos(car.yaw);puff(car.x+sn*L+(rnd()-.5)*.5,car.z+cs*L+(rnd()-.5)*.5,car.vx*.6,car.vz*.6,P.belt+.15,big?0x2a2826:0x6b6866)}
-function puff(x,z,vx,vz,y=.35,col=0xd8d4d0){const s=smokes[smI];smI=(smI+1)%smokes.length;s.life=1;s.m.visible=true;s.m.position.set(x,y,z);s.m.material.color.setHex(col);s.vx=vx*.25+(rnd()-.5)*1.6;s.vy=.4+rnd()*.7;s.vz=vz*.25+(rnd()-.5)*1.6;s.m.material.rotation=rnd()*6;s.rs=(rnd()-.5)*.8}
+function puff(x,z,vx,vz,y=.35,col=0xd8d4d0){const s=smokes[smI];smI=(smI+1)%smokes.length;s.life=1;s.m.visible=true;s.m.position.set(x,y+gyAt(x,z),z);s.m.material.color.setHex(col);s.vx=vx*.25+(rnd()-.5)*1.6;s.vy=.4+rnd()*.7;s.vz=vz*.25+(rnd()-.5)*1.6;s.m.material.rotation=rnd()*6;s.rs=(rnd()-.5)*.8}
 
 // ================= audio =================
 let AC,master,oscs=[],engG,lp,scrG,windG,muted=false;
@@ -1187,6 +1332,8 @@ function updDmg(){const d=Math.round(dmg);$('dmgv').textContent=d+'%';const b=$(
 // ================= vehicle physics =================
 // Bicycle model: rear-wheel spin state, combined-slip tyre ellipse (Pacejka-style curve), load transfer,
 // downforce, engine torque curve with gearbox, rev limiter, brakes and handbrake.
+const gyAt=(x,z)=>MAP&&MAP.gy?MAP.gy(x,z):0;
+function slopeAt2(x,z,sn,cs){if(!MAP||!MAP.gy)return [0,0];const e=1.5,gx=(MAP.gy(x+e,z)-MAP.gy(x-e,z))/(2*e),gz=(MAP.gy(x,z+e)-MAP.gy(x,z-e))/(2*e);return [gx*sn+gz*cs,gx*cs-gz*sn]}
 let afL=0,arL=0,gF=1,gR=1,brakeHeat=0,surfDust=0;
 let car,steer=0,axS=0,ayS=0,roll=0,rollV=0,pitch=0,pitchV=0,gear=1,rpm=900,shiftT=0,wR=0,slipF=0,slipR=0,sigR=0,rev=false,prevThr=0,flameT=0,beta=0;
 function resetCar(){car={x:MAP.spawn[0],z:MAP.spawn[1],yaw:MAP.spawn[2],vx:0,vz:0,r:0};wR=0;gear=1;rev=false;steer=0;rpm=900;shiftT=0;afL=arL=0;brakeHeat=0}
@@ -1248,7 +1395,8 @@ function physics(dt,inp){
   const c=Math.cos(steer),s=Math.sin(steer);
   const Fx=FxR+FxF*c-FyF*s-Fd,Fy=FyR+FyF*c+FxF*s;
   const ax=Fx/S.m,ay=Fy/S.m;
-  u+=(ax+v*r)*dt;v+=(ay-u*r)*dt;r+=((S.a*(FyF*c+FxF*s)-S.b*FyR)/I)*dt;
+  const [slF,slL]=slopeAt2(car.x,car.z,sn,cs);
+  u+=(ax+v*r-g*slF/Math.sqrt(1+slF*slF))*dt;v+=(ay-u*r-g*slL/Math.sqrt(1+slL*slL))*dt;r+=((S.a*(FyF*c+FxF*s)-S.b*FyR)/I)*dt;
   const k=Math.max(0,1-sp/1.2)*(Math.abs(sigR)<.5?1:.15);if(k>0){r+=(u*Math.tan(steer)/L-r)*k*.6;v*=1-k*.4;if(!thr&&!braking&&sp<.3)u*=.9}
   if(assist&&Math.abs(beta)>.95&&beta*r<0)r*=Math.exp(-5*dt);
   brakeHeat=Math.max(0,brakeHeat+((braking?Math.abs(u)*.03:0)-brakeHeat*.22)*dt);
@@ -1327,7 +1475,7 @@ function netTick(dt,me){
       o.g.traverse(m=>{if(m.isSpotLight)m.intensity=0});const tg=nameTag(p.n||'Driver');tg.position.y=2.2;o.g.add(tg);scene.add(o.g);p.obj=o;p.rx=p.x;p.rz=p.z;p.ry=p.y;p.lw=[null,null]}
     const age=Math.min(.25,(now-p.seen)/1000),tx=p.x+p.vx*age,tz=p.z+p.vz*age,k=Math.min(1,dt*12);
     p.rx+=(tx-p.rx)*k;p.rz+=(tz-p.rz)*k;let dy=p.y-p.ry;dy=Math.atan2(Math.sin(dy),Math.cos(dy));p.ry+=dy*k;
-    const o=p.obj;o.g.position.set(p.rx,0,p.rz);o.g.rotation.y=p.ry;o.pivots.forEach(v=>v.rotation.y=p.st||0);
+    const o=p.obj;o.g.position.set(p.rx,gyAt(p.rx,p.rz),p.rz);o.g.rotation.y=p.ry;o.pivots.forEach(v=>v.rotation.y=p.st||0);
     const sp=Math.hypot(p.vx,p.vz);o.wheels.forEach(w=>w.rotation.x+=sp/S.wr*dt);o.tlM.emissiveIntensity=p.b?14:3;
     if(p.d){const sn=Math.sin(p.ry),cs=Math.cos(p.ry),off=S.a-S.wbF;[1,-1].forEach((sd,w)=>{const z=S.wbR+off,wx=p.rx+sn*z+cs*S.track*sd,wz=p.rz+cs*z-sn*S.track*sd;
       const l=p.lw[w];if(l)addSkid(l[0],l[1],wx,wz,S.ww*.45);p.lw[w]=[wx,wz];if(rnd()<.5)puff(wx,wz,p.vx,p.vz)})}else p.lw=[null,null];
@@ -1402,7 +1550,7 @@ function update(dt){
   // suspension
   rollV+=((ayS*.011)-roll)*60*dt-rollV*9*dt;roll+=rollV*dt;
   pitchV+=((-axS*.007)-pitch)*70*dt-pitchV*10*dt;pitch+=pitchV*dt;
-  CAR.g.position.set(car.x,0,car.z);CAR.g.rotation.y=car.yaw;
+  const gy0=gyAt(car.x,car.z),[gsF,gsL]=slopeAt2(car.x,car.z,sn,cs);CAR.g.position.set(car.x,gy0,car.z);CAR.g.rotation.order='YXZ';CAR.g.rotation.set(-Math.atan(gsF),car.yaw,Math.atan(gsL));let camLift=gy0;
   CAR.body.rotation.z=THREE.MathUtils.clamp(roll,-.09,.09);CAR.body.rotation.x=THREE.MathUtils.clamp(pitch,-.05,.05);
   CAR.wheels.forEach((w,i)=>w.rotation.x+=(i>=2?wR:u/S.wr)*dt);
   CAR.pivots.forEach(p=>p.rotation.y=steer);
@@ -1412,7 +1560,7 @@ function update(dt){
   else{const V=VIEWS[camMode][1];shake*=Math.exp(-dt*5);const t=performance.now()*.001,sk=shake*.25+Math.min(sp,60)*.0007;
     const inCar=V==='hood'||V==='driver'||V==='bumper';CAR.panes.forEach(m=>m.visible=V!=='driver');CAR.cockpit.visible=V==='driver';CAR.cab.forEach(m=>m.visible=V!=='driver');
     CAR.wheelS.rotation.z=-steer*2.6;CAR.setClip(V==='driver');if(V==='driver')CAR.cockUpd(dt,rpm,gear,sp*2.237,inp.hb,P.red);
-    if(inCar){const L=S.len/2,b=S.belt;
+    if(inCar){camLift=0;const L=S.len/2,b=S.belt;
       const p=V==='driver'?(CAR.glbPaint&&S.eye?S.eye.slice():[.36,b+(S.roof-b)*.5,S.roofF-.82]):V==='hood'?[0,(b+S.noseH)/2+.36,S.cabF-.05]:[0,S.noseH-.14,L+.28];
       if(V==='driver'){headX+=(THREE.MathUtils.clamp(-ayS*.006,-.08,.08)-headX)*Math.min(1,dt*8);headZ+=(THREE.MathUtils.clamp(-axS*.005,-.07,.07)-headZ)*Math.min(1,dt*8);p[0]+=headX;p[2]+=headZ;const bz=rpm/P.red*.0016;p[1]+=Math.sin(t*157)*bz;p[0]+=Math.cos(t*139)*bz}
       CAR.body.localToWorld(camTmp.set(p[0],p[1],p[2]));CAR.body.localToWorld(camLook.set(p[0],p[1]-(V==='driver'?.6:.35),p[2]+14));
@@ -1432,8 +1580,8 @@ function update(dt){
       camLook.set(car.x+sn*3,.9,car.z+cs*3);camera.lookAt(camLook);camera.fov=56+Math.min(sp,60)*.3}
     if(V!=='tv')tvSet=false}
   if(state==='menu'&&CAR.cockpit.visible){CAR.cockpit.visible=false;CAR.setClip(false);CAR.panes.forEach(m=>m.visible=true);CAR.cab.forEach(m=>m.visible=true)}
-  camera.updateProjectionMatrix();
-  sun.position.set(car.x+sunDir.x*300,sunDir.y*300,car.z+sunDir.z*300);sun.target.position.set(car.x,0,car.z);
+  camera.position.y+=camLift;camera.updateProjectionMatrix();
+  sun.position.set(car.x+sunDir.x*300,gy0+sunDir.y*300,car.z+sunDir.z*300);sun.target.position.set(car.x,gy0,car.z);
   // engine audio
   let r2=state==='menu'?900+Math.sin(performance.now()*.002)*40:rpm;
   if(AC&&!muted){const f=r2/60*S.cyl/2,t=AC.currentTime;oscs.forEach(o=>o.frequency.setTargetAtTime(Math.min(1800,f*o.mul*.5),t,.02));
