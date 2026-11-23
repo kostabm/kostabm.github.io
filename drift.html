@@ -327,7 +327,7 @@ const CARS=[
   wr:.34,ww:.26,track:.8,wbF:1.45,wbR:-1.4,wing:'lip',intakes:false,exh:[.42,-.42],cyl:6,flare:false,canard:false,vent:false,rim:0x9da3aa,camber:.05,doors4:true,
   m:1420,a:1.42,b:1.43,h:.5,mu:1.02,Tpk:620,red:7500,gears:[3.5,2.3,1.65,1.28,1.0,.83],fd:3.7,k:.37,cl:.2,awd:0},
  {name:'VERDE RS',tag:'Rear-engine track coupe · 9,000 rpm flat-6 · swan-neck wing',hp:518,kmh:296,z100:3.2,color:'#163423',num:'',stripe:'#c39a55',dr:[.65,'Medium-hard'],
-  len:4.57,wid:1.9,belt:.84,roof:1.27,cabR:-1.98,roofR:-.72,roofF:-.02,cabF:.74,noseH:.6,taper:.12,ground:.19,
+  len:4.57,wid:1.9,belt:.8,roof:1.27,cabR:-2.05,roofR:-.5,roofF:.08,cabF:.78,noseH:.5,taper:.2,ground:.17,
   wr:.35,ww:.32,track:.84,wbF:1.2,wbR:-1.25,wing:'swan',intakes:false,exh:[.1,-.1],cyl:6,flare:false,canard:true,vent:true,rim:0xb38b50,camber:.04,
   clean:true,rsAero:true,hips:.075,lightbar:true,aeroRear:true,roundLights:true,slats:true,bigDiff:true,
   m:1450,a:1.49,b:.96,h:.44,mu:1.16,Tpk:465,red:9000,gears:[3.75,2.38,1.72,1.34,1.11,.96,.84],fd:3.97,k:.42,cl:.95,awd:0}];
@@ -396,8 +396,8 @@ function buildCar(S,color){
   const L=S.len/2,W=S.wid,b=S.belt;
   const {lower,glass,roof,panes}=carGeos(S,5,8);
   [lower,glass,roof].forEach(geo=>{const n=geo.attributes.position.count;geo.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(n*3).fill(1),3));geo.userData.orig=geo.attributes.position.array.slice()});
-  const paint=new THREE.MeshPhysicalMaterial({color,metalness:.55,roughness:.26,clearcoat:1,clearcoatRoughness:.03,envMapIntensity:1.3,vertexColors:true});
-  const paintP=new THREE.MeshPhysicalMaterial({color,metalness:.55,roughness:.26,clearcoat:1,clearcoatRoughness:.03,envMapIntensity:1.3});
+  const paint=new THREE.MeshPhysicalMaterial({color,metalness:.12,roughness:.42,clearcoat:1,clearcoatRoughness:.05,envMapIntensity:.55,vertexColors:true});
+  const paintP=new THREE.MeshPhysicalMaterial({color,metalness:.12,roughness:.42,clearcoat:1,clearcoatRoughness:.05,envMapIntensity:.55});
   const loose=[];
   const add=(geo,mat,x,y,z,rx=0,p=body)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.rotation.x=rx;m.castShadow=true;m.receiveShadow=true;p.add(m);return m};
   const part=(o,hp=1)=>{o.userData.part={parent:o.parent,p:o.position.clone(),q:o.quaternion.clone(),hp,max:hp};loose.push(o);return o};
@@ -470,7 +470,7 @@ function buildCar(S,color){
   if(S.rsAero){// bonnet vent, louvres on top of the front wings, intakes ahead of the rear wheels, side blades
     add(new RoundedBoxGeometry(.7,.03,.42,2,.012),black,0,hoodY+.015,S.cabF+.42,.08);for(let i=0;i<5;i++)add(new THREE.BoxGeometry(.66,.01,.02),carbon,0,hoodY+.035,S.cabF+.26+i*.08,.08);
     [1,-1].forEach(sg=>{for(let i=0;i<6;i++)add(new THREE.BoxGeometry(.3,.012,.022),black,sg*(W/2-.27),b+.09,S.wbF-.18+i*.07,.05);
-      add(new RoundedBoxGeometry(.05,.22,.5,2,.02),black,sg*(W/2+.03),b-.25,S.wbR+.68);const bl=add(new THREE.BoxGeometry(.03,.42,.12),carbon,sg*(W/2+.07),S.ground+.32,S.wbR-.52);bl.rotation.x=-.1})}
+      add(new RoundedBoxGeometry(.04,.12,.34,2,.02),black,sg*(W/2+.035),b-.2,S.wbR+.62);const bl=add(new THREE.BoxGeometry(.03,.42,.12),carbon,sg*(W/2+.07),S.ground+.32,S.wbR-.52);bl.rotation.x=-.1})}
   if(S.slats)for(let i=0;i<6;i++)add(new THREE.BoxGeometry(W*.42,.015,.035),black,0,b+.165-i*.012,-L+1.1-i*.09,-.3);
   if(S.intakes)[W/2-.03,-(W/2-.03)].forEach(x=>add(new RoundedBoxGeometry(.06,.24,.62,2,.03),black,x,b-.27,S.cabR+.15));
   if(S.vent)[.26,-.26].forEach(x=>{for(let i=0;i<4;i++)add(new THREE.BoxGeometry(.32,.012,.025),black,x,hoodY+.012,hoodZ-.12+i*.07)});
@@ -713,6 +713,7 @@ function buildPass(){const g=grpFor();TGT=g;
   farForest(tf);
   for(let k=0;k<(LOW?2000:6000);k++){const p=pts[rnd()*N|0],a=rnd()*6.28,d=8.6+Math.pow(rnd(),1.3)*80,x=p.x+Math.cos(a)*d,z=p.z+Math.sin(a)*d;if(RF.d(x,z)<8.6)continue;grs.push([x,H(x,z),z,.7+rnd()*.8])}
   grassTufts(grs);
+  undergrowth(pts,RF,H,(x,z)=>H(x,z)<400,LOW?600:1800,LOW?30:110);
   for(let k=0;k<320;k++){const p=pts[rnd()*N|0],a=rnd()*6.28,d=10+rnd()*150,x=p.x+Math.cos(a)*d,z=p.z+Math.sin(a)*d;if(RF.d(x,z)<9.5)continue;const sc=.5+Math.pow(rnd(),2)*3;bl.push([x,H(x,z)+sc*.15,z,sc])}
   boulders(bl);
   const sp=pts[0],sq=pts[3];TGT=scene;
@@ -861,6 +862,19 @@ function pines2(list){// list: [x,y,z,scale]
     inst(trunkGeo,trunkMat,l.map(p=>[p[0],p[1],p[2],0,p[3],p[3]*tH,p[3]]),true);
     const im=inst(PINE.geos[v],PINE.mat,l.map(p=>[p[0],p[1],p[2],rnd()*6.28,p[3]*(.85+rnd()*.3),p[3],p[3]*(.85+rnd()*.3)]),true);
     l.forEach((_,i)=>{tc.setHSL(.27+rnd()*.06,.15+rnd()*.25,.55+rnd()*.25);im.setColorAt(i,tc)})})}
+// low shrubs (manzanita / young fir) and fallen logs for the forest floor
+const BUSH=(()=>{const card=new THREE.PlaneGeometry(1,.6,3,1);card.translate(.5,0,0);card.rotateX(-Math.PI/2);const parts=[];
+  for(let k=0;k<26;k++){const c=card.clone(),a=rnd()*6.283,el=.15+rnd()*.9,len=.6+rnd()*.5;c.scale(len,1,len);c.rotateZ(el);c.rotateY(a);c.translate(0,.15+rnd()*.25,0);
+    c.setAttribute('color',new THREE.BufferAttribute(new Float32Array(c.attributes.position.count*3).fill(.85+rnd()*.15),3));const q=c.attributes.normal,ps=c.attributes.position;
+    for(let i=0;i<q.count;i++){const x=ps.getX(i),y=ps.getY(i)-.2,z=ps.getZ(i),l=Math.hypot(x,y,z)||1;q.setXYZ(i,x/l,y/l,z/l)}parts.push(c)}
+  return mergeGeometries(parts)})();
+function shrubs(list){const im=inst(BUSH,PINE.mat,list.map(p=>[p[0],p[1],p[2],rnd()*6.28,p[3],p[3]*(.6+rnd()*.4),p[3]]),true);const tc=new THREE.Color();list.forEach((_,i)=>{tc.setHSL(.2+rnd()*.1,.2+rnd()*.3,.55+rnd()*.3);im.setColorAt(i,tc)})}
+const logGeo=new THREE.CylinderGeometry(.22,.28,1,9,1);logGeo.rotateZ(Math.PI/2);
+function logs(list){inst(logGeo,new THREE.MeshStandardMaterial({color:0x6b5644,roughness:.95,map:groundDetail}),list.map(p=>[p[0],p[1]+.18*p[3],p[2],rnd()*6.28,p[3]*(5+rnd()*6),p[3],p[3]]),true)}
+function undergrowth(pts,RF,H,ok,nS,nL){const N=pts.length,sh=[],lg=[];
+  for(let k=0;k<nS;k++){const p=pts[rnd()*N|0],a=rnd()*6.28,d=8+Math.pow(rnd(),1.4)*180,x=p.x+Math.cos(a)*d,z=p.z+Math.sin(a)*d;if(RF.d(x,z)<8||!ok(x,z))continue;sh.push([x,H(x,z),z,.8+rnd()*1.4])}
+  for(let k=0;k<nL;k++){const p=pts[rnd()*N|0],a=rnd()*6.28,d=30+rnd()*160,x=p.x+Math.cos(a)*d,z=p.z+Math.sin(a)*d;if(RF.d(x,z)<28||!ok(x,z))continue;lg.push([x,H(x,z),z,.7+rnd()*.6])}
+  shrubs(sh);logs(lg)}
 function farForest(list){const g=new THREE.ConeGeometry(1,1,7,1);g.translate(0,.5,0);const im=inst(g,new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,envMapIntensity:.3}),list.map(p=>[p[0],p[1]-1,p[2],0,p[3]*.28,p[3],p[3]*.28]),false);im.receiveShadow=false;
   const tc=new THREE.Color();list.forEach((_,i)=>{tc.setHSL(.27+rnd()*.06,.3+rnd()*.15,.1+rnd()*.06);im.setColorAt(i,tc)})}
 // dry alpine grass tufts
@@ -877,7 +891,14 @@ function boulders(list){const by=[[],[]];list.forEach((p,i)=>by[i%2].push(p));by
 // clear alpine sky (physically based Sky rendered once into a cube map + image-based lighting)
 const ALP={dir:new THREE.Vector3().setFromSphericalCoords(1,THREE.MathUtils.degToRad(50),THREE.MathUtils.degToRad(28)),bg:null,env:null};
 function ensureAlp(){if(ALP.bg)return;const s=new Sky();s.scale.setScalar(10000);const u=s.material.uniforms;u.turbidity.value=1.8;u.rayleigh.value=1.6;u.mieCoefficient.value=.0035;u.mieDirectionalG.value=.84;u.sunPosition.value.copy(ALP.dir);
-  const sc=new THREE.Scene();sc.add(s);const rt=new THREE.WebGLCubeRenderTarget(LOW?256:512,{type:THREE.HalfFloatType});new THREE.CubeCamera(1,20000,rt).update(renderer,sc);ALP.bg=rt.texture;ALP.env=pmrem.fromScene(sc,0,.1,20000).texture}
+  const sc=new THREE.Scene();sc.add(s);
+  // fair-weather cumulus: soft lit-from-above blobs scattered low around the horizon
+  const ct=ctex(256,128,(g,w,h)=>{for(let k=0;k<22;k++){const x=30+rnd()*196,y=50+rnd()*45-Math.abs(x-128)*.15,r=16+rnd()*26,gr=g.createRadialGradient(x,y-r*.3,0,x,y,r);
+    gr.addColorStop(0,'rgba(255,255,255,.95)');gr.addColorStop(.6,'rgba(236,240,246,.55)');gr.addColorStop(1,'rgba(200,210,225,0)');g.fillStyle=gr;g.fillRect(0,0,w,h)}
+    const sh=g.createLinearGradient(0,60,0,128);sh.addColorStop(0,'rgba(0,0,0,0)');sh.addColorStop(1,'rgba(120,135,160,.5)');g.globalCompositeOperation='source-atop';g.fillStyle=sh;g.fillRect(0,0,w,h)});
+  for(let k=0;k<46;k++){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:ct,transparent:true,depthWrite:false,fog:false,opacity:.7+rnd()*.3}));const az=rnd()*6.283,el=THREE.MathUtils.degToRad(3+Math.pow(rnd(),1.6)*28),d=6000;
+    sp.position.set(Math.cos(az)*Math.cos(el)*d,Math.sin(el)*d,Math.sin(az)*Math.cos(el)*d);const sz=(900+rnd()*1600)*(1-el*.8);sp.scale.set(sz,sz*.5,1);sp.material.color.setScalar(3.2);sc.add(sp)}
+  const rt=new THREE.WebGLCubeRenderTarget(LOW?256:512,{type:THREE.HalfFloatType});new THREE.CubeCamera(1,20000,rt).update(renderer,sc);ALP.bg=rt.texture;ALP.env=pmrem.fromScene(sc,0,.1,20000).texture}
 // tileable procedural ripple normal map for lakes
 const waterNorm=(()=>{const S=256,c=document.createElement('canvas');c.width=c.height=S;const g=c.getContext('2d'),im=g.createImageData(S,S),Wv=[];
   for(let i=0;i<28;i++){let fx=(R()*14|0)-7,fy=(R()*14|0)-7;if(!fx&&!fy)fx=1;Wv.push([fx,fy,R()*6.28,1/(1+Math.hypot(fx,fy)*.8)])}
@@ -951,6 +972,7 @@ function buildTahoe(){const g=grpFor();TGT=g;
   farForest(tf);
   for(let k=0;k<(LOW?2500:8000);k++){const p=pts[rnd()*N|0],a=rnd()*6.28,d=6.8+Math.pow(rnd(),1.3)*70,x=p.x+Math.cos(a)*d,z=p.z+Math.sin(a)*d;if(RF.d(x,z)<6.8||-lakeS(x,z)<30)continue;grs.push([x,H(x,z),z,.7+rnd()*.8])}
   grassTufts(grs);
+  undergrowth(pts,RF,H,(x,z)=>-lakeS(x,z)>38&&H(x,z)<300,LOW?700:2200,LOW?40:140);
   for(let k=0;k<420;k++){const p=pts[rnd()*N|0],a=rnd()*6.28,d=14+rnd()*160,x=p.x+Math.cos(a)*d,z=p.z+Math.sin(a)*d,rd=RF.d(x,z);if(rd<12||-lakeS(x,z)<20)continue;const sc=.6+Math.pow(rnd(),2)*3.2;bl.push([x,H(x,z)+sc*.15,z,sc]);if(rd<27)circ.push({x,z,r:sc*.9})}
   // granite boulders along the beach
   for(let x=-1000;x<=1000;x+=9+rnd()*14){const z=shoreZ(x)+6+rnd()*10,sc=.5+rnd()*1.8;bl.push([x,H(x,z)+sc*.1,z,sc])}
