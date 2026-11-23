@@ -52,7 +52,10 @@ a{color:#e2e4f0;font-size:14px}
 #lstat{font-size:14px;color:#ffd36b;min-height:18px}
 #plist{position:fixed;right:12px;top:78px;display:none;background:rgba(0,0,0,.4);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700;line-height:1.6;text-shadow:0 1px 3px #000;min-width:150px}
 #plist div{display:flex;justify-content:space-between;gap:12px}#plist .me{color:#ffd36b}
-@media (min-width:900px){.maps{justify-content:flex-start;max-width:480px}#menu{align-items:flex-start;justify-content:center;text-align:left;padding:30px 0 30px 5vw;background:linear-gradient(90deg,rgba(11,13,23,.88) 0%,rgba(11,13,23,.55) 38%,rgba(11,13,23,0) 60%)}#menu h1{font-size:64px}#keys{max-width:430px}.modes{justify-content:flex-start}}
+#menu{overflow-y:auto;overscroll-behavior:contain;justify-content:flex-start!important}#menu>*{flex-shrink:0}#menu::before{content:'';flex:1 0 0}
+#garage{max-width:100%}#carinfo{min-width:0;flex:1 1 auto;width:min(78vw,380px)}.arr{flex:0 0 auto}
+#credit summary{cursor:pointer}
+@media (min-width:900px){#menu::before{flex:1 0 0}#menu::after{content:'';flex:1 0 0}.maps{justify-content:flex-start;max-width:480px}#menu{align-items:flex-start;justify-content:center;text-align:left;padding:30px 0 30px 5vw;background:linear-gradient(90deg,rgba(11,13,23,.88) 0%,rgba(11,13,23,.55) 38%,rgba(11,13,23,0) 60%)}#menu h1{font-size:64px}#keys{max-width:430px}.modes{justify-content:flex-start}}
 </style>
 </head>
 <body>
@@ -72,7 +75,7 @@ a{color:#e2e4f0;font-size:14px}
   <div class="modes"><button id="free">FREE DRIVE</button><button id="multi" class="ghost">👥 MULTIPLAYER</button><button id="chal" class="ghost">2-MIN CHALLENGE</button></div>
   <label class="tog"><input type="checkbox" id="assist" checked> Drift assist (auto counter-steer &amp; launch control)</label>
   <div id="keys">↑ / W gas · ↓ / S brake &amp; reverse · ← → / A D steer · SPACE handbrake · C / V change view · R repair · M mute · ESC menu<br>Free Drive has no timer &mdash; drift as long as you like. Keep the slide going to grow your combo.</div>
-  <div id="credit" style="font-size:11px;opacity:.6;margin-top:6px">911 GT3 RS model: <a href="https://sketchfab.com/3d-models/porsche-gt3-rs-e738eae819c34d19a31dd066c45e0f3d" target="_blank" rel="noopener">“Porsche GT3 RS”</a> by Black Snow, <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> (compressed for the web) · Koenigsegg Jesko model: <a href="https://sketchfab.com/3d-models/2020-koenigsegg-jesko-c657f51fb0db43e38fea172dfa385287" target="_blank" rel="noopener">“2020 Koenigsegg Jesko”</a> by Ddiaz Design, CC BY 4.0 · Pagani model: <a href="https://sketchfab.com/3d-models/2025-pagani-huayra-r-evo-roadster-4950e65962044c8b90d0e1b140ca9868" target="_blank" rel="noopener">“2025 Pagani Huayra R Evo Roadster”</a> by Ddiaz Design, <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a> (non-commercial; the compressed model is shared under the same licence) · Bugatti model: <a href="https://sketchfab.com/3d-models/1994-bugatti-eb110-lm-a5f120acfb3143fe804b24689115b871" target="_blank" rel="noopener">“1994 Bugatti EB110 LM”</a> by Dave Love, CC BY 4.0 · South Lake Tahoe terrain: AWS Terrain Tiles (USGS 3DEP) · Imagery: <a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless</a> by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2016), CC BY 4.0</div>
+  <details id="credit" style="font-size:11px;opacity:.6;margin-top:6px;max-width:560px"><summary>Credits</summary>911 GT3 RS model: <a href="https://sketchfab.com/3d-models/porsche-gt3-rs-e738eae819c34d19a31dd066c45e0f3d" target="_blank" rel="noopener">“Porsche GT3 RS”</a> by Black Snow, <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> (compressed for the web) · Koenigsegg Jesko model: <a href="https://sketchfab.com/3d-models/2020-koenigsegg-jesko-c657f51fb0db43e38fea172dfa385287" target="_blank" rel="noopener">“2020 Koenigsegg Jesko”</a> by Ddiaz Design, CC BY 4.0 · Pagani model: <a href="https://sketchfab.com/3d-models/2025-pagani-huayra-r-evo-roadster-4950e65962044c8b90d0e1b140ca9868" target="_blank" rel="noopener">“2025 Pagani Huayra R Evo Roadster”</a> by Ddiaz Design, <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a> (non-commercial; the compressed model is shared under the same licence) · Bugatti model: <a href="https://sketchfab.com/3d-models/1994-bugatti-eb110-lm-a5f120acfb3143fe804b24689115b871" target="_blank" rel="noopener">“1994 Bugatti EB110 LM”</a> by Dave Love, CC BY 4.0 · South Lake Tahoe terrain: AWS Terrain Tiles (USGS 3DEP) · Imagery: <a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless</a> by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2016), CC BY 4.0</details>
   <a href="./">← back to Kosta's Games</a>
 </div>
 <button id="pause">☰ Menu</button><button id="viewBtn">🎥 Chase</button>
@@ -410,8 +413,9 @@ const SEDAN=CARS[5];// still used for the parked cars in Downtown
 CARS.splice(0,CARS.length,...CARS.filter(c=>c.glb));
 // ---------- detailed 3D car models (glTF) ----------
 const GLB={};
-function loadGLB(url){if(GLB[url])return;GLB[url]={scene:null};new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(url,g=>{GLB[url].scene=g.scene;
-  if(P&&P.glb===url&&CAR)setCar(carIdx);NET.players&&NET.players.forEach(p=>{if(p.obj&&CARS[p.c]&&CARS[p.c].glb===url){scene.remove(p.obj.g);p.obj=null}})},undefined,e=>console.warn('car model failed',e))}
+function loadGLB(url){if(GLB[url])return;GLB[url]={scene:null};new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(url,g=>{GLB[url].scene=g.scene;setTimeout(preloadNext,500);
+  if(P&&P.glb===url&&CAR)setCar(carIdx);NET.players&&NET.players.forEach(p=>{if(p.obj&&CARS[p.c]&&CARS[p.c].glb===url){scene.remove(p.obj.g);p.obj=null}})},undefined,e=>{console.warn('car model failed',e);GLB[url].failed=true;if(P&&P.glb===url&&CAR)setCar(carIdx);setTimeout(preloadNext,500)})}
+function preloadNext(){const c=CARS.find(c=>c.glb&&!GLB[c.glb]);if(c)loadGLB(c.glb)}// fetch the other cars in the background so switching is instant
 if(CARS[0]&&CARS[0].glb)loadGLB(CARS[0].glb);// other models load when picked
 const toF32=geo=>{const g=new THREE.BufferGeometry();for(const k in geo.attributes){const a=geo.attributes[k],n=a.count,is=a.itemSize,arr=new Float32Array(n*is);const gt=[i=>a.getX(i),i=>a.getY(i),i=>a.getZ(i),i=>a.getW(i)];for(let i=0;i<n;i++)for(let j=0;j<is;j++)arr[i*is+j]=gt[j](i);g.setAttribute(k,new THREE.BufferAttribute(arr,is))}
   if(geo.index)g.setIndex(Array.from(geo.index.array));return g};
@@ -482,7 +486,8 @@ function glbCar(S,color,C){const src=GLB[S.glb].scene,pr=src.userData.prep,root=
   C.body.children.forEach(ch=>ch.visible=false);C.body.add(root);piv.forEach(pv=>C.model.add(pv));C.piv4.forEach(p=>p.visible=false);
   const glbPaint=paints.length?{color:{set:c=>paints.forEach(p=>p.color.set(c))}}:null;
   return Object.assign(C,{wheels,pivots,piv4:piv,loose:[],glbPaint,glb:true,sw:swG,swQ0,tlM:brake||C.tlM,discM:disc||C.discM,dentGeos:[],panes:[],cab:[],cockpit:new THREE.Group()})}
-function buildCar(S,color){if(S.glb&&!GLB[S.glb])loadGLB(S.glb);const G=S.glb&&GLB[S.glb];if(G&&G.scene){try{glbPrep(S,G.scene);return glbCar(S,color,buildCarProc(S,color))}catch(e){console.warn('car model failed, using built-in body',e);G.scene=null}}return buildCarProc(S,color)}
+function buildCar(S,color){if(S.glb&&!GLB[S.glb])loadGLB(S.glb);const G=S.glb&&GLB[S.glb];if(G&&G.scene){try{glbPrep(S,G.scene);return glbCar(S,color,buildCarProc(S,color))}catch(e){console.warn('car model failed, using built-in body',e);G.scene=null;G.failed=true}}
+  const C=buildCarProc(S,color);if(G&&!G.failed){C.loading=true;C.model.visible=false}return C}
 function buildCarProc(S,color){
   const g=new THREE.Group(),model=new THREE.Group(),body=new THREE.Group();g.add(model);model.add(body);model.position.z=S.a-S.wbF;
   const L=S.len/2,W=S.wid,b=S.belt;
@@ -721,7 +726,7 @@ function setCar(i){carIdx=(i+CARS.length)%CARS.length;P=CARS[carIdx];
   if(CAR){scene.remove(CAR.g);CAR.g.traverse(o=>{if(o.geometry)o.geometry.dispose()})}
   debris.forEach(o=>o.parent&&o.parent.remove(o));debris.length=0;dmg=0;pull=0;wreckT=0;
   CAR=buildCar(P,colorSel||P.color);scene.add(CAR.g);CAR.paint.clippingPlanes=CAR.clipW;CAR.paint.clipIntersection=true;if($('dmgv'))updDmg();
-  $('cname').textContent=P.name;$('ctag').textContent=P.tag;
+  $('cname').textContent=P.name;$('ctag').textContent=CAR.loading?'Loading 3D model…':P.tag;
   const bar=(l,v,t)=>`<div class="st"><span>${l}</span><i><b style="width:${Math.round(Math.min(1,v)*100)}%"></b></i><em>${t}</em></div>`;
   $('stats').innerHTML=bar('Power',P.hp/1000,P.hp+' hp')+bar('Top speed',P.kmh/330,Math.round(P.kmh*.6214)+' mph')+bar('0–60 mph',(7-P.z100)/4.5,(P.z100*.94).toFixed(1)+' s')+bar('Drift',P.dr[0],P.dr[1]);
   if(car)CAR.g.position.set(car.x,0,car.z)}
@@ -1555,7 +1560,7 @@ resetCar();setCar(0);
 MAPDEF.forEach(([k,n])=>{const b=document.createElement('button');b.textContent=n;b.dataset.m=k;b.onclick=()=>{b.textContent='Loading…';setTimeout(()=>{setMap(k);b.textContent=n},30)};$('maps').appendChild(b)});
 {let m='city';try{m=localStorage.getItem('driftMap')||'city'}catch(e){}setMap(m)}
 function showMsg(t,c){$('msg').textContent=t;$('msg').style.color=c||'#fff';msgT=1.8}
-function start(m){mode=m;audio();repairCar();if(AC&&AC.state==='suspended')AC.resume();resetCar();score=0;bestDrift=0;cur=0;dtime=0;mult=1;idle=0;timeLeft=TIME;cd=3;lw=[null,null,null,null];clearSkids();
+function start(m){mode=m;if(CAR&&CAR.loading)CAR.model.visible=true;audio();repairCar();if(AC&&AC.state==='suspended')AC.resume();resetCar();score=0;bestDrift=0;cur=0;dtime=0;mult=1;idle=0;timeLeft=TIME;cd=3;lw=[null,null,null,null];clearSkids();
   for(const k in K)K[k]=false;state='count';$('menu').style.display='none';$('hud').style.display='flex';$('spd').style.display='block';$('pause').style.display='block';$('viewBtn').style.display='block';if(TOUCH)$('touch').style.display='flex';if(m==='multi'){$('plist').style.display='block';cd=1.5;const sp=(NET.id||'x').split('').reduce((a,c)=>a+c.charCodeAt(0),0)%8;{const o=(sp%3-1)*3.6,bk=Math.floor(sp/3)*7,c=Math.cos(car.yaw),s=Math.sin(car.yaw);car.x+=c*o-s*bk;car.z+=-s*o-c*bk}}}
 function bank(){if(cur<=0)return;const p=Math.round(cur*mult);score+=p;bestDrift=Math.max(bestDrift,p);
   showMsg('+'+p+(p>8000?'  LEGENDARY!':p>4000?'  INSANE DRIFT!':p>1500?'  GREAT DRIFT!':'  NICE!'),p>4000?'#ff7ab6':p>1500?'#ffd36b':'#7cf5c4');cur=0;dtime=0;mult=1;idle=0}
