@@ -332,7 +332,7 @@ const CARS=[
  {name:'911 GT3 RS',tag:'Rear-engine track car · 4.0 flat-6, 9,000 rpm · swan-neck wing',glb:'models/gt3rs.glb',hp:518,kmh:296,z100:3.2,color:'#163423',num:'',stripe:'#c39a55',dr:[.65,'Medium-hard'],
   len:4.57,wid:1.9,belt:.8,roof:1.27,cabR:-2.05,roofR:-.5,roofF:.08,cabF:.78,noseH:.5,taper:.2,ground:.17,
   wr:.33,ww:.3,track:.772,wbF:1.166,wbR:-1.29,wing:'swan',intakes:false,exh:[.1,-.1],cyl:6,flare:false,canard:true,vent:true,rim:0xb38b50,camber:.04,
-  clean:true,rsAero:true,hips:.075,lightbar:true,aeroRear:true,roundLights:true,slats:true,bigDiff:true,
+  clean:true,rsAero:true,eye:[.344,1.1,-.33],hips:.075,lightbar:true,aeroRear:true,roundLights:true,slats:true,bigDiff:true,
   m:1450,a:1.49,b:.96,h:.44,mu:1.16,Tpk:465,red:9000,gears:[3.75,2.38,1.72,1.34,1.11,.96,.84],fd:3.97,k:.42,cl:.95,awd:0}];
 
 function deform(geo,fn){geo.deleteAttribute('normal');geo.deleteAttribute('uv');geo=mergeVertices(geo,1e-4);const p=geo.attributes.position;
@@ -394,6 +394,9 @@ const numTex={};function numberTex(n,stripe){const k=n+stripe;if(numTex[k])retur
   return numTex[k]=ctex(256,256,(g,w,h)=>{g.clearRect(0,0,w,h);g.fillStyle='#f4f4f0';g.beginPath();g.arc(128,128,118,0,7);g.fill();g.lineWidth=12;g.strokeStyle=stripe;g.stroke();
     g.fillStyle='#111';g.font='900 150px system-ui,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(n,128,138)})}
 const crackM=new THREE.MeshStandardMaterial({color:0x9aa3aa,roughness:.55,metalness:.1,side:THREE.DoubleSide});
+// the 911 GT3 RS is the only car
+const SEDAN=CARS[5];// still used for the parked cars in Downtown
+CARS.splice(0,CARS.length,...CARS.filter(c=>c.glb));
 // ---------- detailed 3D car models (glTF) ----------
 const GLB={};
 function loadGLB(url){if(GLB[url])return;GLB[url]={scene:null};new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(url,g=>{GLB[url].scene=g.scene;
@@ -407,7 +410,7 @@ function glbCar(S,color,C){const src=GLB[S.glb].scene,root=new THREE.Group(),dy=
   const groups=new Map(),mats={};let brake=null,disc=null;
   src.traverse(o=>{if(!o.isMesh||isWheel(o))return;let m=o.material;
     if(/carPaint\.|carPaint_secondary/.test(m.name)&&!m.map)m=paint;
-    else{if(!mats[m.uuid]){const c=m.clone();if(/brakelight/.test(m.name)){c.emissive=new THREE.Color(0xff1010);c.emissiveIntensity=.5;brake=c}if(/glass/.test(m.name)){c.envMapIntensity=1.2}if(/amdb11_brake\./.test(m.name)&&c.emissive){c.emissive=new THREE.Color(0xff3a08);c.emissiveIntensity=0;disc=c}mats[m.uuid]=c}m=mats[m.uuid]}
+    else{if(!mats[m.uuid]){const c=m.clone();if(/brakelight/.test(m.name)){c.emissive=new THREE.Color(0xff1010);c.emissiveIntensity=.5;brake=c}if(/glass/i.test(m.name)&&!/black/i.test(m.name)){c.transparent=true;c.opacity=Math.min(c.opacity,.22);c.color.set(0x9fb0bc);c.roughness=0;c.metalness=0;c.envMapIntensity=.45;c.depthWrite=false}if(/amdb11_brake\./.test(m.name)&&c.emissive){c.emissive=new THREE.Color(0xff3a08);c.emissiveIntensity=0;disc=c}mats[m.uuid]=c}m=mats[m.uuid]}
     const g=toF32(o.geometry);g.applyMatrix4(o.matrixWorld);g.translate(0,dy,0);const key=m.uuid+'|'+Object.keys(g.attributes).sort().join()+'|'+!!g.index;if(!groups.has(key))groups.set(key,{m,list:[]});groups.get(key).list.push(g)});
   groups.forEach(({m,list})=>{const geo=list.length>1?mergeGeometries(list):list[0];if(!geo)return;const mesh=new THREE.Mesh(geo,m);mesh.castShadow=mesh.receiveShadow=!m.transparent;root.add(mesh)});
   // wheels: pivot (steers) -> spin (rolls) -> the model's rim+tyre; discs and calipers only steer
@@ -420,8 +423,8 @@ function glbCar(S,color,C){const src=GLB[S.glb].scene,root=new THREE.Group(),dy=
     const tgt=/brakedisc/.test(o.name)?piv[i]:wheels[i],cl=o.clone(true);
     cl.traverse(q=>{if(q.isMesh){q.castShadow=q.receiveShadow=true;if(mats[q.material.uuid])q.material=mats[q.material.uuid]}});
     const m=new THREE.Matrix4().copy(tgt.matrixWorld).invert().multiply(lift).multiply(o.matrixWorld);m.decompose(cl.position,cl.quaternion,cl.scale);tgt.add(cl)});
-  C.model.add(root);C.body.visible=false;C.piv4.forEach(p=>p.visible=false);
-  return Object.assign(C,{wheels,pivots,piv4:piv,loose:[],glbPaint:paint,tlM:brake||C.tlM,discM:disc||C.discM,dentGeos:[]})}
+  C.body.children.forEach(ch=>ch.visible=false);C.body.add(root);piv.forEach(pv=>C.model.add(pv));C.piv4.forEach(p=>p.visible=false);
+  return Object.assign(C,{wheels,pivots,piv4:piv,loose:[],glbPaint:paint,tlM:brake||C.tlM,discM:disc||C.discM,dentGeos:[],panes:[],cab:[],cockpit:new THREE.Group()})}
 function buildCar(S,color){if(S.glb&&GLB[S.glb]&&GLB[S.glb].scene){try{return glbCar(S,color,buildCarProc(S,color))}catch(e){console.warn('car model failed, using built-in body',e);GLB[S.glb].scene=null}}return buildCarProc(S,color)}
 function buildCarProc(S,color){
   const g=new THREE.Group(),model=new THREE.Group(),body=new THREE.Group();g.add(model);model.add(body);model.position.z=S.a-S.wbF;
@@ -673,7 +676,7 @@ for(let i=0;i<=GRID;i++){const L=roadC(i);
     for(const side of [-1,1])for(let t=a;t<b;t+=6.4){
       if(R()<.32&&!inPlaza(L,t)&&Math.abs(L)<HALF-3)parked.push({x:L+side*(ROAD/2-1.35),z:t,rot:side>0?Math.PI:0,ax:'z'});
       if(R()<.32&&!inPlaza(t,L)&&Math.abs(L)<HALF-3)parked.push({x:t,z:L+side*(ROAD/2-1.35),rot:side>0?-Math.PI/2:Math.PI/2,ax:'x'})}}}
-{const S=CARS[5],{lower,glass,roof,panes}=carGeos(S,2);
+{const S=SEDAN,{lower,glass,roof,panes}=carGeos(S,2);
   const pm=new THREE.MeshPhysicalMaterial({color:0xffffff,metalness:.5,roughness:.3,clearcoat:1,clearcoatRoughness:.05});
   const pos=parked.map(p=>[p.x,0,p.z,p.rot]);
   const bodyI=inst(lower,pm,pos,true);const roofI=inst(roof,pm,pos,true);
@@ -1137,7 +1140,7 @@ if(TOUCH){document.querySelectorAll('#touch button[data-k]').forEach(b=>{const k
 const COLS=['#c8102e','#0f4fa8','#f2b705','#e9e9ea','#121214','#1f7a4d','#ff6a00','#6b6f76','#7b3fa0'];
 COLS.forEach(c=>{const s=document.createElement('span');s.style.background=c;
   s.onclick=()=>{colorSel=c;CAR.paint.color.set(c);CAR.paintP.color.set(c);if(CAR.glbPaint)CAR.glbPaint.color.set(c);document.querySelectorAll('#cols span').forEach(x=>x.className='');s.className='on'};$('cols').appendChild(s)});
-$('prev').onclick=()=>setCar(carIdx-1);$('next').onclick=()=>setCar(carIdx+1);
+$('prev').onclick=()=>setCar(carIdx-1);$('next').onclick=()=>setCar(carIdx+1);if(CARS.length<2){$('prev').style.visibility=$('next').style.visibility='hidden'}
 let assist=true;$('assist').onchange=e=>assist=e.target.checked;
 
 // ================= crash damage =================
@@ -1410,7 +1413,7 @@ function update(dt){
     const inCar=V==='hood'||V==='driver'||V==='bumper';CAR.panes.forEach(m=>m.visible=V!=='driver');CAR.cockpit.visible=V==='driver';CAR.cab.forEach(m=>m.visible=V!=='driver');
     CAR.wheelS.rotation.z=-steer*2.6;CAR.setClip(V==='driver');if(V==='driver')CAR.cockUpd(dt,rpm,gear,sp*2.237,inp.hb,P.red);
     if(inCar){const L=S.len/2,b=S.belt;
-      const p=V==='driver'?[.36,b+(S.roof-b)*.5,S.roofF-.82]:V==='hood'?[0,(b+S.noseH)/2+.36,S.cabF-.05]:[0,S.noseH-.14,L+.28];
+      const p=V==='driver'?(CAR.glbPaint&&S.eye?S.eye.slice():[.36,b+(S.roof-b)*.5,S.roofF-.82]):V==='hood'?[0,(b+S.noseH)/2+.36,S.cabF-.05]:[0,S.noseH-.14,L+.28];
       if(V==='driver'){headX+=(THREE.MathUtils.clamp(-ayS*.006,-.08,.08)-headX)*Math.min(1,dt*8);headZ+=(THREE.MathUtils.clamp(-axS*.005,-.07,.07)-headZ)*Math.min(1,dt*8);p[0]+=headX;p[2]+=headZ;const bz=rpm/P.red*.0016;p[1]+=Math.sin(t*157)*bz;p[0]+=Math.cos(t*139)*bz}
       CAR.body.localToWorld(camTmp.set(p[0],p[1],p[2]));CAR.body.localToWorld(camLook.set(p[0],p[1]-(V==='driver'?.6:.35),p[2]+14));
       camera.position.set(camTmp.x+Math.sin(t*37)*sk*.4,camTmp.y+Math.sin(t*41)*sk*.4,camTmp.z);camPos.copy(camTmp);camera.lookAt(camLook);if(V==='driver')camera.rotateZ(-THREE.MathUtils.clamp(roll,-.09,.09)*.8-headX*.6);
@@ -1445,7 +1448,7 @@ function update(dt){
 }
 let last=performance.now();
 function loop(now){film.uniforms.t.value=now*.001%100;const dt=Math.min(.033,(now-last)/1000);last=now;update(dt);if(MAP.pre){camera.updateMatrixWorld();MAP.pre()}composer.render();
-  if(CAR&&CAR.cockpit.visible&&(mirN++&1)){CAR.mirP.getWorldPosition(mirV);mirCam.position.copy(mirV);mirT.set(-Math.sin(car.yaw)*20,-.6,-Math.cos(car.yaw)*20).add(mirV);mirCam.lookAt(mirT);
+  if(CAR&&CAR.cockpit.visible&&!CAR.glbPaint&&(mirN++&1)){CAR.mirP.getWorldPosition(mirV);mirCam.position.copy(mirV);mirT.set(-Math.sin(car.yaw)*20,-.6,-Math.cos(car.yaw)*20).add(mirV);mirCam.lookAt(mirT);
     CAR.mirP.visible=false;renderer.shadowMap.autoUpdate=false;renderer.setRenderTarget(mirRT);renderer.render(scene,mirCam);renderer.setRenderTarget(null);renderer.shadowMap.autoUpdate=true;CAR.mirP.visible=true}
   requestAnimationFrame(loop)}
 $('load').remove();$('menu').style.display='flex';
