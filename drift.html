@@ -72,7 +72,7 @@ a{color:#e2e4f0;font-size:14px}
   <div class="modes"><button id="free">FREE DRIVE</button><button id="multi" class="ghost">👥 MULTIPLAYER</button><button id="chal" class="ghost">2-MIN CHALLENGE</button></div>
   <label class="tog"><input type="checkbox" id="assist" checked> Drift assist (auto counter-steer &amp; launch control)</label>
   <div id="keys">↑ / W gas · ↓ / S brake &amp; reverse · ← → / A D steer · SPACE handbrake · C / V change view · R repair · M mute · ESC menu<br>Free Drive has no timer &mdash; drift as long as you like. Keep the slide going to grow your combo.</div>
-  <div id="credit" style="font-size:11px;opacity:.6;margin-top:6px">911 GT3 RS model: <a href="https://sketchfab.com/3d-models/porsche-gt3-rs-e738eae819c34d19a31dd066c45e0f3d" target="_blank" rel="noopener">“Porsche GT3 RS”</a> by Black Snow, <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> (compressed for the web) · South Lake Tahoe terrain: AWS Terrain Tiles (USGS 3DEP) · Imagery: <a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless</a> by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2016), CC BY 4.0</div>
+  <div id="credit" style="font-size:11px;opacity:.6;margin-top:6px">911 GT3 RS model: <a href="https://sketchfab.com/3d-models/porsche-gt3-rs-e738eae819c34d19a31dd066c45e0f3d" target="_blank" rel="noopener">“Porsche GT3 RS”</a> by Black Snow, <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> (compressed for the web) · Koenigsegg Jesko model: <a href="https://sketchfab.com/3d-models/2020-koenigsegg-jesko-c657f51fb0db43e38fea172dfa385287" target="_blank" rel="noopener">“2020 Koenigsegg Jesko”</a> by Ddiaz Design, CC BY 4.0 · Pagani model: <a href="https://sketchfab.com/3d-models/2025-pagani-huayra-r-evo-roadster-4950e65962044c8b90d0e1b140ca9868" target="_blank" rel="noopener">“2025 Pagani Huayra R Evo Roadster”</a> by Ddiaz Design, <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a> (non-commercial; the compressed model is shared under the same licence) · Bugatti model: <a href="https://sketchfab.com/3d-models/1994-bugatti-eb110-lm-a5f120acfb3143fe804b24689115b871" target="_blank" rel="noopener">“1994 Bugatti EB110 LM”</a> by Dave Love, CC BY 4.0 · South Lake Tahoe terrain: AWS Terrain Tiles (USGS 3DEP) · Imagery: <a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless</a> by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2016), CC BY 4.0</div>
   <a href="./">← back to Kosta's Games</a>
 </div>
 <button id="pause">☰ Menu</button><button id="viewBtn">🎥 Chase</button>
@@ -329,7 +329,7 @@ const CARS=[
   len:4.85,wid:1.82,belt:.98,roof:1.42,cabR:-1.9,roofR:-1.3,roofF:.38,cabF:1.08,noseH:.74,taper:.06,ground:.24,
   wr:.34,ww:.26,track:.8,wbF:1.45,wbR:-1.4,wing:'lip',intakes:false,exh:[.42,-.42],cyl:6,flare:false,canard:false,vent:false,rim:0x9da3aa,camber:.05,doors4:true,
   m:1420,a:1.42,b:1.43,h:.5,mu:1.02,Tpk:620,red:7500,gears:[3.5,2.3,1.65,1.28,1.0,.83],fd:3.7,k:.37,cl:.2,awd:0},
- {name:'911 GT3 RS',tag:'Rear-engine track car · 4.0 flat-6, 9,000 rpm · swan-neck wing',glb:'models/gt3rs.glb',hp:518,kmh:296,z100:3.2,color:'#163423',num:'',stripe:'#c39a55',dr:[.65,'Medium-hard'],
+ {name:'911 GT3 RS',tag:'Rear-engine track car · 4.0 flat-6, 9,000 rpm · swan-neck wing',glb:'models/gt3rs.glb',wheelRe:/chrome_wheels_20x9\d*$/,steerRe:/brakedisc_FR\d+$/,sw:{re:/^TwiXeR_992_steer_3$/},paintRe:/carPaint\.|carPaint_secondary/,brakeRe:/brakelight/,discRe:/amdb11_brake\./,fa:.61,hp:518,kmh:296,z100:3.2,color:'#163423',num:'',stripe:'#c39a55',dr:[.65,'Medium-hard'],
   len:4.57,wid:1.9,belt:.8,roof:1.27,cabR:-2.05,roofR:-.5,roofF:.08,cabF:.78,noseH:.5,taper:.2,ground:.17,
   wr:.33,ww:.3,track:.772,wbF:1.166,wbR:-1.29,wing:'swan',intakes:false,exh:[.1,-.1],cyl:6,flare:false,canard:true,vent:true,rim:0xb38b50,camber:.04,
   clean:true,rsAero:true,eye:[.344,1.1,-.33],hips:.075,lightbar:true,aeroRear:true,roundLights:true,slats:true,bigDiff:true,
@@ -394,38 +394,95 @@ const numTex={};function numberTex(n,stripe){const k=n+stripe;if(numTex[k])retur
   return numTex[k]=ctex(256,256,(g,w,h)=>{g.clearRect(0,0,w,h);g.fillStyle='#f4f4f0';g.beginPath();g.arc(128,128,118,0,7);g.fill();g.lineWidth=12;g.strokeStyle=stripe;g.stroke();
     g.fillStyle='#111';g.font='900 150px system-ui,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(n,128,138)})}
 const crackM=new THREE.MeshStandardMaterial({color:0x9aa3aa,roughness:.55,metalness:.1,side:THREE.DoubleSide});
-// the 911 GT3 RS is the only car
+// detailed model cars (the GT3 RS plus three hypercars)
+{const base=CARS.find(c=>c.glb);const add=o=>CARS.push(Object.assign({},base,{eye:null,clean:true},o));
+ add({name:'KOENIGSEGG JESKO',tag:'Mid-engine hypercar · 5.0 twin-turbo V8 · 1,600 hp (E85) · 9-speed LST',hp:1600,kmh:480,z100:2.5,color:'#d8d9db',dr:[.5,'Hard'],
+   glb:'models/jesko.glb',glbLen:4.61,wheelRe:/^(jesko)?LOD_A_(WHEEL_mm_wheel|TYRE_mm_tyre)\d*$/,steerRe:/^(jesko)?LOD_A_(ROTOR_mm_rotor\d*|BRAKE_CALIPER_\w+_mm_misc)$/,paintRe:/mm_ext1$/,brakeRe:null,discRe:null,fa:.57,sw:{re:/INT_STEERING_WHEEL/},eye:[.316,.98,-.08],
+   m:1420,h:.42,mu:1.22,Tpk:1500,red:8500,gears:[3.0,2.2,1.7,1.4,1.17,1.0,.87,.77,.68],fd:3.64,k:.36,cl:1.1,cyl:8,credit:'“2020 Koenigsegg Jesko” by Ddiaz Design, CC BY 4.0'});
+ add({name:'PAGANI HUAYRA R EVO',tag:'Track roadster · 6.0 naturally aspirated V12 · 900 hp, 9,000 rpm',hp:900,kmh:340,z100:2.7,color:'#2b2f36',dr:[.55,'Hard'],
+   glb:'models/huayra-r-evo.glb',glbLen:5.24,wheelRe:/^3DWheel_(Front|Rear)_[LR]$/,steerRe:/^Calliper_(Front|Rear)_[LR]/,paintRe:/PaintA/,brakeRe:null,discRe:null,fa:.56,sw:{c:[.29,.725,.49],r:.2,d:.09},eye:[.29,.9,.02],
+   m:1100,h:.4,mu:1.26,Tpk:770,red:9000,gears:[3.1,2.2,1.7,1.36,1.13,.96],fd:3.4,k:.4,cl:1.3,cyl:12,credit:'“2025 Pagani Huayra R Evo Roadster” by Ddiaz Design, CC BY-NC-SA 4.0'});
+ add({name:'BUGATTI EB110 LM',tag:'1994 Le Mans racer · 3.5 quad-turbo V12 · ~650 hp',hp:650,kmh:330,z100:3.3,color:'#1d4fa3',dr:[.7,'Medium'],
+   glb:'models/eb110-lm.glb',glbLen:null,wheelRe:null,steerRe:null,splitWheels:['Object_10','Object_12','Object_16'],paintRe:null,brakeRe:null,discRe:null,fa:.56,sw:{c:[.312,.668,.475],r:.185,d:.07},eye:[.312,.86,-.09],
+   m:1150,h:.43,mu:1.15,Tpk:650,red:8000,gears:[3.0,2.0,1.5,1.2,.98,.83],fd:3.7,k:.4,cl:.8,cyl:12,credit:'“1994 Bugatti EB110 LM” by Dave Love, CC BY 4.0'})}
+// only the detailed model cars are in the garage
 const SEDAN=CARS[5];// still used for the parked cars in Downtown
 CARS.splice(0,CARS.length,...CARS.filter(c=>c.glb));
 // ---------- detailed 3D car models (glTF) ----------
 const GLB={};
 function loadGLB(url){if(GLB[url])return;GLB[url]={scene:null};new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(url,g=>{GLB[url].scene=g.scene;
   if(P&&P.glb===url&&CAR)setCar(carIdx);NET.players&&NET.players.forEach(p=>{if(p.obj&&CARS[p.c]&&CARS[p.c].glb===url){scene.remove(p.obj.g);p.obj=null}})},undefined,e=>console.warn('car model failed',e))}
-CARS.forEach(c=>c.glb&&loadGLB(c.glb));
+if(CARS[0]&&CARS[0].glb)loadGLB(CARS[0].glb);// other models load when picked
 const toF32=geo=>{const g=new THREE.BufferGeometry();for(const k in geo.attributes){const a=geo.attributes[k],n=a.count,is=a.itemSize,arr=new Float32Array(n*is);const gt=[i=>a.getX(i),i=>a.getY(i),i=>a.getZ(i),i=>a.getW(i)];for(let i=0;i<n;i++)for(let j=0;j<is;j++)arr[i*is+j]=gt[j](i);g.setAttribute(k,new THREE.BufferAttribute(arr,is))}
   if(geo.index)g.setIndex(Array.from(geo.index.array));return g};
-function glbCar(S,color,C){const src=GLB[S.glb].scene,root=new THREE.Group(),dy=S.wr-.304;src.updateMatrixWorld(true);
-  const paint=new THREE.MeshPhysicalMaterial({color,metalness:.12,roughness:.4,clearcoat:1,clearcoatRoughness:.04,envMapIntensity:.6});
-  const isWheel=o=>{for(let q=o;q;q=q.parent)if(/chrome_wheels_20x9\d*$|brakedisc_FR\d+$/.test(q.name))return true;return false};
-  const groups=new Map(),mats={};let brake=null,disc=null;
-  src.traverse(o=>{if(!o.isMesh||isWheel(o))return;let m=o.material;
-    if(/carPaint\.|carPaint_secondary/.test(m.name)&&!m.map)m=paint;
-    else{if(!mats[m.uuid]){const c=m.clone();if(/brakelight/.test(m.name)){c.emissive=new THREE.Color(0xff1010);c.emissiveIntensity=.5;brake=c}if(/glass/i.test(m.name)&&!/black/i.test(m.name)){c.transparent=true;c.opacity=Math.min(c.opacity,.22);c.color.set(0x9fb0bc);c.roughness=0;c.metalness=0;c.envMapIntensity=.45;c.depthWrite=false}if(/amdb11_brake\./.test(m.name)&&c.emissive){c.emissive=new THREE.Color(0xff3a08);c.emissiveIntensity=0;disc=c}mats[m.uuid]=c}m=mats[m.uuid]}
-    const g=toF32(o.geometry);g.applyMatrix4(o.matrixWorld);g.translate(0,dy,0);const key=m.uuid+'|'+Object.keys(g.attributes).sort().join()+'|'+!!g.index;if(!groups.has(key))groups.set(key,{m,list:[]});groups.get(key).list.push(g)});
+// Prepare a loaded model once: scale to real size, find the four wheels, measure them, and set the car's dimensions from the model.
+function glbPrep(S,src){if(src.userData.prep)return src.userData.prep;src.updateMatrixWorld(true);
+  const bb0=new THREE.Box3().setFromObject(src),sz=bb0.getSize(new THREE.Vector3()),sc=S.glbLen?S.glbLen/sz.z:1,Msc=new THREE.Matrix4().makeScale(sc,sc,sc);
+  const midZ=(bb0.min.z+bb0.max.z)/2*sc,inRe=(o,re)=>{if(!re)return false;for(let q=o;q;q=q.parent)if(re.test(q.name))return true;return false};
+  const parts=[];// {kind:'spin'|'steer', node|geo+mat, box}
+  const wb=o=>{const b=new THREE.Box3().setFromObject(o);b.min.multiplyScalar(sc);b.max.multiplyScalar(sc);return b};
+  src.traverse(o=>{if(S.wheelRe&&S.wheelRe.test(o.name)&&!inRe(o.parent,S.wheelRe))parts.push({kind:'spin',node:o,box:wb(o)});
+    else if(S.steerRe&&S.steerRe.test(o.name)&&!inRe(o.parent,S.steerRe)&&!inRe(o,S.wheelRe))parts.push({kind:'steer',node:o,box:wb(o)})});
+  // models whose four wheels are merged into one mesh: split those meshes by corner
+  if(S.splitWheels)src.traverse(o=>{if(!o.isMesh||!S.splitWheels.includes(o.name))return;const g=toF32(o.geometry);g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(Msc,o.matrixWorld));
+    const ng=g.index?g.toNonIndexed():g,P=ng.attributes.position,keys=Object.keys(ng.attributes),buckets=[[],[],[],[]];
+    for(let t=0;t<P.count;t+=3){const cx=(P.getX(t)+P.getX(t+1)+P.getX(t+2))/3,cz=(P.getZ(t)+P.getZ(t+1)+P.getZ(t+2))/3;buckets[(cx>0?0:1)+(cz>midZ?0:2)].push(t)}
+    buckets.forEach(tris=>{if(!tris.length)return;const out=new THREE.BufferGeometry();keys.forEach(k=>{const a=ng.attributes[k],is=a.itemSize,arr=new Float32Array(tris.length*3*is);let w=0;
+      tris.forEach(t=>{for(let v=0;v<3;v++)for(let c=0;c<is;c++)arr[w++]=a.array[(t+v)*is+c]});out.setAttribute(k,new THREE.BufferAttribute(arr,is))});
+      out.computeBoundingBox();parts.push({kind:'spin',geo:out,mat:o.material,box:out.boundingBox.clone()})})});
+  // corners: 0 FL(+x,+z) 1 FR 2 RL 3 RR
+  const corner=b=>{const c=b.getCenter(new THREE.Vector3());return (c.x>0?0:1)+(c.z>midZ?0:2)};
+  const cb=[0,1,2,3].map(()=>new THREE.Box3());parts.forEach(p=>{p.corner=corner(p.box);if(p.kind==='spin')cb[p.corner].union(p.box)});
+  const ctr=cb.map(b=>b.getCenter(new THREE.Vector3())),rad=cb.map(b=>b.getSize(new THREE.Vector3()).y/2);
+  const dy=-Math.min(...ctr.map((c,i)=>c.y-rad[i]));// lift so the tyres touch the ground
+  S.track=(Math.abs(ctr[0].x)+Math.abs(ctr[1].x)+Math.abs(ctr[2].x)+Math.abs(ctr[3].x))/4;S.wbF=(ctr[0].z+ctr[1].z)/2;S.wbR=(ctr[2].z+ctr[3].z)/2;S.wr=(rad[0]+rad[1]+rad[2]+rad[3])/4;
+  const WB=S.wbF-S.wbR;S.a=WB*(S.fa||.55);S.b=WB-S.a;S.len=sz.z*sc;S.wid=Math.min(2.05,sz.x*sc);
+  if(!S.eye)S.eye=[.36,(bb0.max.y*sc+dy)-.26,S.wbF-1.45];
+  return src.userData.prep={sc,Msc,dy,parts,ctr,rad}}
+function glbCar(S,color,C){const src=GLB[S.glb].scene,pr=src.userData.prep,root=new THREE.Group(),{Msc,dy}=pr,lift=new THREE.Matrix4().makeTranslation(0,dy,0);
+  const paints=[],mats={};let brake=null,disc=null;
+  const mkMat=m=>{if(mats[m.uuid])return mats[m.uuid];let c;
+    if(S.paintRe&&S.paintRe.test(m.name)){c=m.map?m.clone():new THREE.MeshPhysicalMaterial({metalness:.12,roughness:.4,clearcoat:1,clearcoatRoughness:.04,envMapIntensity:.6});c.color=new THREE.Color(color);paints.push(c)}
+    else{c=m.clone();if(S.brakeRe&&S.brakeRe.test(m.name)){c.emissive=new THREE.Color(0xff1010);c.emissiveIntensity=.5;brake=c}
+      if((/glass|window/i.test(m.name)||(m.transparent&&m.opacity<.95))&&!/black/i.test(m.name)){c.transparent=true;c.opacity=Math.min(c.opacity,.22);c.color.set(0x9fb0bc);c.roughness=0;c.metalness=0;c.envMapIntensity=.45;c.depthWrite=false}
+      if(S.discRe&&S.discRe.test(m.name)&&c.emissive){c.emissive=new THREE.Color(0xff3a08);c.emissiveIntensity=0;disc=c}}
+    return mats[m.uuid]=c};
+  const skip=new Set();pr.parts.forEach(p=>{if(p.node)p.node.traverse(q=>skip.add(q))});
+  const groups=new Map();
+  const SW=S.sw||{},swParts=[],swC=SW.c?new THREE.Vector3(...SW.c):null,swAx=new THREE.Vector3(0,.42,-.91).normalize();
+  const inSW=o=>{if(!SW.re)return false;for(let q=o;q&&q!==src;q=q.parent)if(SW.re.test(q.name))return true;return false};
+  const splitSW=(g,m)=>{const ng=g.index?g.toNonIndexed():g,P=ng.attributes.position,keys=Object.keys(ng.attributes),a=[],b=[],v=new THREE.Vector3();
+    for(let t=0;t<P.count;t+=3){v.set((P.getX(t)+P.getX(t+1)+P.getX(t+2))/3,(P.getY(t)+P.getY(t+1)+P.getY(t+2))/3,(P.getZ(t)+P.getZ(t+1)+P.getZ(t+2))/3).sub(swC);
+      (v.length()<SW.r&&Math.abs(v.dot(swAx))<SW.d?a:b).push(t)}
+    if(!a.length)return g;const mk=tris=>{const out=new THREE.BufferGeometry();keys.forEach(k=>{const at=ng.attributes[k],is=at.itemSize,arr=new Float32Array(tris.length*3*is);let w=0;
+      tris.forEach(t=>{for(let q=0;q<3;q++)for(let c=0;c<is;c++)arr[w++]=at.array[(t+q)*is+c]});out.setAttribute(k,new THREE.BufferAttribute(arr,is))});return out};
+    swParts.push({g:mk(a),m});return b.length?mk(b):null};
+  src.traverse(o=>{if(!o.isMesh||skip.has(o)||(S.splitWheels&&S.splitWheels.includes(o.name)))return;const m=mkMat(o.material);
+    let g=toF32(o.geometry);g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(Msc,o.matrixWorld));g.translate(0,dy,0);
+    if(inSW(o)){swParts.push({g,m});return}
+    if(swC){g.computeBoundingSphere();if(g.boundingSphere.center.distanceTo(swC)<g.boundingSphere.radius+SW.r){g=splitSW(g,m);if(!g)return}}const key=m.uuid+'|'+Object.keys(g.attributes).sort().join()+'|'+!!g.index;if(!groups.has(key))groups.set(key,{m,list:[]});groups.get(key).list.push(g)});
   groups.forEach(({m,list})=>{const geo=list.length>1?mergeGeometries(list):list[0];if(!geo)return;const mesh=new THREE.Mesh(geo,m);mesh.castShadow=mesh.receiveShadow=!m.transparent;root.add(mesh)});
-  // wheels: pivot (steers) -> spin (rolls) -> the model's rim+tyre; discs and calipers only steer
+  // steering wheel: its own group, turning about the column axis (found from the wheel's shape)
+  let swG=null,swQ0=null;
+  if(swParts.length){let n=0;const cen=new THREE.Vector3(),cov=new Array(9).fill(0);swParts.forEach(({g})=>{const P=g.attributes.position;for(let i=0;i<P.count;i++){cen.x+=P.getX(i);cen.y+=P.getY(i);cen.z+=P.getZ(i);n++}});cen.divideScalar(n);
+    if(swC)cen.copy(swC);
+    swParts.forEach(({g})=>{const P=g.attributes.position;for(let i=0;i<P.count;i++){const d=[P.getX(i)-cen.x,P.getY(i)-cen.y,P.getZ(i)-cen.z];for(let r=0;r<3;r++)for(let c=0;c<3;c++)cov[r*3+c]+=d[r]*d[c]}});
+    const tr=cov[0]+cov[4]+cov[8];let ax=new THREE.Vector3(0,.4,-.9);for(let k=0;k<80;k++){const x=ax.x,y=ax.y,z=ax.z;ax.set(tr*x-(cov[0]*x+cov[1]*y+cov[2]*z),tr*y-(cov[3]*x+cov[4]*y+cov[5]*z),tr*z-(cov[6]*x+cov[7]*y+cov[8]*z)).normalize()}
+    if(ax.z>0)ax.negate();swQ0=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1),ax);const qi=swQ0.clone().invert();
+    swG=new THREE.Group();swG.position.copy(cen);swG.quaternion.copy(swQ0);root.add(swG);
+    const bym=new Map();swParts.forEach(({g,m})=>{g.translate(-cen.x,-cen.y,-cen.z);g.applyQuaternion(qi);const k=m.uuid+'|'+Object.keys(g.attributes).sort().join()+'|'+!!g.index;if(!bym.has(k))bym.set(k,{m,l:[]});bym.get(k).l.push(g)});
+    bym.forEach(({m,l})=>{const geo=l.length>1?mergeGeometries(l):l[0];if(geo){const mesh=new THREE.Mesh(geo,m);mesh.castShadow=true;swG.add(mesh)}})}
+  // wheels: pivot (steers) -> spin (rolls)
   const wheels=[],piv=[],pivots=[];
-  [[1,S.wbF],[-1,S.wbF],[1,S.wbR],[-1,S.wbR]].forEach(([sd,z],i)=>{const pv=new THREE.Group();pv.position.set(sd*S.track,S.wr,z);root.add(pv);const sp=new THREE.Group();pv.add(sp);wheels.push(sp);piv.push(pv);if(i<2)pivots.push(pv)});
-  root.updateMatrixWorld(true);
-  const lift=new THREE.Matrix4().makeTranslation(0,dy,0),tmp=new THREE.Vector3();
-  src.traverse(o=>{if(!/chrome_wheels_20x9\d*$|brakedisc_FR\d+$/.test(o.name))return;
-    const c=new THREE.Box3().setFromObject(o).getCenter(tmp);let i=0,bd=1e9;piv.forEach((pv,k)=>{const d=Math.hypot(pv.position.x-c.x,pv.position.z-c.z);if(d<bd){bd=d;i=k}});
-    const tgt=/brakedisc/.test(o.name)?piv[i]:wheels[i],cl=o.clone(true);
-    cl.traverse(q=>{if(q.isMesh){q.castShadow=q.receiveShadow=true;if(mats[q.material.uuid])q.material=mats[q.material.uuid]}});
-    const m=new THREE.Matrix4().copy(tgt.matrixWorld).invert().multiply(lift).multiply(o.matrixWorld);m.decompose(cl.position,cl.quaternion,cl.scale);tgt.add(cl)});
+  pr.ctr.forEach((c,i)=>{const pv=new THREE.Group();pv.position.set(c.x,c.y+dy,c.z);const sp=new THREE.Group();pv.add(sp);wheels.push(sp);piv.push(pv);if(i<2)pivots.push(pv);pv.updateMatrixWorld(true)});
+  pr.parts.forEach(p=>{const tgt=p.kind==='steer'?piv[p.corner]:wheels[p.corner];
+    if(p.node){const cl=p.node.clone(true);cl.traverse(q=>{if(q.isMesh){q.castShadow=q.receiveShadow=true;q.material=mkMat(q.material)}});
+      const m=new THREE.Matrix4().copy(tgt.matrixWorld).invert().multiply(lift).multiply(Msc).multiply(p.node.matrixWorld);m.decompose(cl.position,cl.quaternion,cl.scale);tgt.add(cl)}
+    else{const c=pr.ctr[p.corner],g=p.geo.clone();g.translate(-c.x,-c.y,-c.z);const mesh=new THREE.Mesh(g,mkMat(p.mat));mesh.castShadow=true;tgt.add(mesh)}});
   C.body.children.forEach(ch=>ch.visible=false);C.body.add(root);piv.forEach(pv=>C.model.add(pv));C.piv4.forEach(p=>p.visible=false);
-  return Object.assign(C,{wheels,pivots,piv4:piv,loose:[],glbPaint:paint,tlM:brake||C.tlM,discM:disc||C.discM,dentGeos:[],panes:[],cab:[],cockpit:new THREE.Group()})}
-function buildCar(S,color){if(S.glb&&GLB[S.glb]&&GLB[S.glb].scene){try{return glbCar(S,color,buildCarProc(S,color))}catch(e){console.warn('car model failed, using built-in body',e);GLB[S.glb].scene=null}}return buildCarProc(S,color)}
+  const glbPaint=paints.length?{color:{set:c=>paints.forEach(p=>p.color.set(c))}}:null;
+  return Object.assign(C,{wheels,pivots,piv4:piv,loose:[],glbPaint,glb:true,sw:swG,swQ0,tlM:brake||C.tlM,discM:disc||C.discM,dentGeos:[],panes:[],cab:[],cockpit:new THREE.Group()})}
+function buildCar(S,color){if(S.glb&&!GLB[S.glb])loadGLB(S.glb);const G=S.glb&&GLB[S.glb];if(G&&G.scene){try{glbPrep(S,G.scene);return glbCar(S,color,buildCarProc(S,color))}catch(e){console.warn('car model failed, using built-in body',e);G.scene=null}}return buildCarProc(S,color)}
 function buildCarProc(S,color){
   const g=new THREE.Group(),model=new THREE.Group(),body=new THREE.Group();g.add(model);model.add(body);model.position.z=S.a-S.wbF;
   const L=S.len/2,W=S.wid,b=S.belt;
@@ -1475,7 +1532,7 @@ function netTick(dt,me){
       o.g.traverse(m=>{if(m.isSpotLight)m.intensity=0});const tg=nameTag(p.n||'Driver');tg.position.y=2.2;o.g.add(tg);scene.add(o.g);p.obj=o;p.rx=p.x;p.rz=p.z;p.ry=p.y;p.lw=[null,null]}
     const age=Math.min(.25,(now-p.seen)/1000),tx=p.x+p.vx*age,tz=p.z+p.vz*age,k=Math.min(1,dt*12);
     p.rx+=(tx-p.rx)*k;p.rz+=(tz-p.rz)*k;let dy=p.y-p.ry;dy=Math.atan2(Math.sin(dy),Math.cos(dy));p.ry+=dy*k;
-    const o=p.obj;o.g.position.set(p.rx,gyAt(p.rx,p.rz),p.rz);o.g.rotation.y=p.ry;o.pivots.forEach(v=>v.rotation.y=p.st||0);
+    const o=p.obj;o.g.position.set(p.rx,gyAt(p.rx,p.rz),p.rz);o.g.rotation.y=p.ry;if(o.sw){o.sw.quaternion.copy(o.swQ0);o.sw.rotateZ((p.st||0)*6.2)}o.pivots.forEach(v=>v.rotation.y=p.st||0);
     const sp=Math.hypot(p.vx,p.vz);o.wheels.forEach(w=>w.rotation.x+=sp/S.wr*dt);o.tlM.emissiveIntensity=p.b?14:3;
     if(p.d){const sn=Math.sin(p.ry),cs=Math.cos(p.ry),off=S.a-S.wbF;[1,-1].forEach((sd,w)=>{const z=S.wbR+off,wx=p.rx+sn*z+cs*S.track*sd,wz=p.rz+cs*z-sn*S.track*sd;
       const l=p.lw[w];if(l)addSkid(l[0],l[1],wx,wz,S.ww*.45);p.lw[w]=[wx,wz];if(rnd()<.5)puff(wx,wz,p.vx,p.vz)})}else p.lw=[null,null];
@@ -1559,9 +1616,9 @@ function update(dt){
   if(state==='menu'){orbit+=dt*.18;const wide=innerWidth>=900,o=wide?-2.4:0;camera.position.set(car.x+Math.sin(orbit)*7.5,1.6,car.z+Math.cos(orbit)*7.5);camera.lookAt(car.x+Math.cos(orbit)*o,wide?.9:.4,car.z-Math.sin(orbit)*o);camera.fov=45}
   else{const V=VIEWS[camMode][1];shake*=Math.exp(-dt*5);const t=performance.now()*.001,sk=shake*.25+Math.min(sp,60)*.0007;
     const inCar=V==='hood'||V==='driver'||V==='bumper';CAR.panes.forEach(m=>m.visible=V!=='driver');CAR.cockpit.visible=V==='driver';CAR.cab.forEach(m=>m.visible=V!=='driver');
-    CAR.wheelS.rotation.z=-steer*2.6;CAR.setClip(V==='driver');if(V==='driver')CAR.cockUpd(dt,rpm,gear,sp*2.237,inp.hb,P.red);
+    CAR.wheelS.rotation.z=-steer*2.6;if(CAR.sw){CAR.sw.quaternion.copy(CAR.swQ0);CAR.sw.rotateZ(steer*6.2)}CAR.setClip(V==='driver');if(V==='driver')CAR.cockUpd(dt,rpm,gear,sp*2.237,inp.hb,P.red);
     if(inCar){camLift=0;const L=S.len/2,b=S.belt;
-      const p=V==='driver'?(CAR.glbPaint&&S.eye?S.eye.slice():[.36,b+(S.roof-b)*.5,S.roofF-.82]):V==='hood'?[0,(b+S.noseH)/2+.36,S.cabF-.05]:[0,S.noseH-.14,L+.28];
+      const p=V==='driver'?(CAR.glb&&S.eye?S.eye.slice():[.36,b+(S.roof-b)*.5,S.roofF-.82]):V==='hood'?[0,(b+S.noseH)/2+.36,S.cabF-.05]:[0,S.noseH-.14,L+.28];
       if(V==='driver'){headX+=(THREE.MathUtils.clamp(-ayS*.006,-.08,.08)-headX)*Math.min(1,dt*8);headZ+=(THREE.MathUtils.clamp(-axS*.005,-.07,.07)-headZ)*Math.min(1,dt*8);p[0]+=headX;p[2]+=headZ;const bz=rpm/P.red*.0016;p[1]+=Math.sin(t*157)*bz;p[0]+=Math.cos(t*139)*bz}
       CAR.body.localToWorld(camTmp.set(p[0],p[1],p[2]));CAR.body.localToWorld(camLook.set(p[0],p[1]-(V==='driver'?.6:.35),p[2]+14));
       camera.position.set(camTmp.x+Math.sin(t*37)*sk*.4,camTmp.y+Math.sin(t*41)*sk*.4,camTmp.z);camPos.copy(camTmp);camera.lookAt(camLook);if(V==='driver')camera.rotateZ(-THREE.MathUtils.clamp(roll,-.09,.09)*.8-headX*.6);
@@ -1596,12 +1653,12 @@ function update(dt){
 }
 let last=performance.now();
 function loop(now){film.uniforms.t.value=now*.001%100;const dt=Math.min(.033,(now-last)/1000);last=now;update(dt);if(MAP.pre){camera.updateMatrixWorld();MAP.pre()}composer.render();
-  if(CAR&&CAR.cockpit.visible&&!CAR.glbPaint&&(mirN++&1)){CAR.mirP.getWorldPosition(mirV);mirCam.position.copy(mirV);mirT.set(-Math.sin(car.yaw)*20,-.6,-Math.cos(car.yaw)*20).add(mirV);mirCam.lookAt(mirT);
+  if(CAR&&CAR.cockpit.visible&&!CAR.glb&&(mirN++&1)){CAR.mirP.getWorldPosition(mirV);mirCam.position.copy(mirV);mirT.set(-Math.sin(car.yaw)*20,-.6,-Math.cos(car.yaw)*20).add(mirV);mirCam.lookAt(mirT);
     CAR.mirP.visible=false;renderer.shadowMap.autoUpdate=false;renderer.setRenderTarget(mirRT);renderer.render(scene,mirCam);renderer.setRenderTarget(null);renderer.shadowMap.autoUpdate=true;CAR.mirP.visible=true}
   requestAnimationFrame(loop)}
 $('load').remove();$('menu').style.display='flex';
 requestAnimationFrame(loop);
-window.__game={setMap:k=>setMap(k),get dmg(){return dmg},step(n){for(let i=0;i<n;i++)update(1/60)},get state(){return state},get map(){return MAP},get carObj(){return CAR},get car(){return car},K,get score(){return score},get cur(){return cur},start,setCar,
+window.__game={setMap:k=>setMap(k),get dmg(){return dmg},step(n){for(let i=0;i<n;i++)update(1/60)},get state(){return state},get map(){return MAP},get carObj(){return CAR},get spec(){return P},pick(nx,ny){const rc=new THREE.Raycaster();rc.setFromCamera(new THREE.Vector2(nx,ny),camera);const vis=o=>{for(;o;o=o.parent)if(!o.visible)return false;return true};const h=rc.intersectObject(CAR.g,true).find(x=>vis(x.object)&&x.object.isMesh&&x.distance>.15);if(!h)return null;const l=CAR.body.worldToLocal(h.point.clone());return {p:l.toArray().map(v=>+v.toFixed(3)),mat:h.object.material.name,name:h.object.name,d:+h.distance.toFixed(3)}},get car(){return car},K,get score(){return score},get cur(){return cur},start,setCar,
   get info(){return {gear,rpm:rpm|0,wR:+wR.toFixed(1),beta:+beta.toFixed(2),sigR:+sigR.toFixed(2)}},setAssist(v){assist=v},enterRoom,get net(){return {host:NET.host,room:NET.room,players:[...NET.players.values()].map(p=>({n:p.n,x:p.x|0,z:p.z|0,c:p.c,has:!!p.obj}))}}};
 </script>
 </body>
