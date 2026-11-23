@@ -63,7 +63,7 @@ a{color:#e2e4f0;font-size:14px}
 <div id="spd"><div id="dmg">DAMAGE <span id="dmgv">0%</span><i><b id="dmgb"></b></i></div><span id="gear">1</span><b id="kmh">0</b><br><span>MPH</span></div>
 <div id="drift"><div id="dpts"></div><div id="dmul"></div><div id="msg"></div></div>
 <div id="touch">
-  <div><button data-k="left">◀</button><button data-k="right">▶</button><button id="fix" style="font-size:20px">🔧</button></div>
+  <div><button data-k="left">◀</button><button data-k="right">▶</button><button id="fix" style="font-size:20px">🔧</button><button id="swapBtn" style="font-size:20px">🚗</button></div>
   <div><button data-k="drift">⤳</button><button data-k="down">▼</button><button data-k="up">▲</button></div>
 </div>
 <div id="menu" style="display:none">
@@ -74,7 +74,7 @@ a{color:#e2e4f0;font-size:14px}
   <div class="maps" id="maps"></div>
   <div class="modes"><button id="free">FREE DRIVE</button><button id="multi" class="ghost">👥 MULTIPLAYER</button><button id="chal" class="ghost">2-MIN CHALLENGE</button></div>
   <label class="tog"><input type="checkbox" id="assist" checked> Drift assist (auto counter-steer &amp; launch control)</label>
-  <div id="keys">↑ / W gas · ↓ / S brake &amp; reverse · ← → / A D steer · SPACE handbrake · C / V change view · R repair · M mute · ESC menu<br>Free Drive has no timer &mdash; drift as long as you like. Keep the slide going to grow your combo.</div>
+  <div id="keys">↑ / W gas · ↓ / S brake &amp; reverse · ← → / A D steer · SPACE handbrake · C / V change view · F change car · R repair · M mute · ESC menu<br>Free Drive has no timer &mdash; drift as long as you like. Keep the slide going to grow your combo.</div>
   <details id="credit" style="font-size:11px;opacity:.6;margin-top:6px;max-width:560px"><summary>Credits</summary>911 GT3 RS model: <a href="https://sketchfab.com/3d-models/porsche-gt3-rs-e738eae819c34d19a31dd066c45e0f3d" target="_blank" rel="noopener">“Porsche GT3 RS”</a> by Black Snow, <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> (compressed for the web) · Koenigsegg Jesko model: <a href="https://sketchfab.com/3d-models/2020-koenigsegg-jesko-c657f51fb0db43e38fea172dfa385287" target="_blank" rel="noopener">“2020 Koenigsegg Jesko”</a> by Ddiaz Design, CC BY 4.0 · Pagani model: <a href="https://sketchfab.com/3d-models/2025-pagani-huayra-r-evo-roadster-4950e65962044c8b90d0e1b140ca9868" target="_blank" rel="noopener">“2025 Pagani Huayra R Evo Roadster”</a> by Ddiaz Design, <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a> (non-commercial; the compressed model is shared under the same licence) · Bugatti model: <a href="https://sketchfab.com/3d-models/1994-bugatti-eb110-lm-a5f120acfb3143fe804b24689115b871" target="_blank" rel="noopener">“1994 Bugatti EB110 LM”</a> by Dave Love, CC BY 4.0 · South Lake Tahoe terrain: AWS Terrain Tiles (USGS 3DEP) · Imagery: <a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless</a> by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2016), CC BY 4.0</details>
   <a href="./">← back to Kosta's Games</a>
 </div>
@@ -1337,6 +1337,7 @@ addEventListener('keydown',e=>{const k=km[e.code];if(k){K[k]=true;e.preventDefau
   if(e.code==='KeyM'&&master){muted=!muted;master.gain.value=muted?0:.55}
   if(e.code==='KeyC'||e.code==='KeyV')setView(camMode+(e.shiftKey?-1:1));
   if(e.code==='KeyR'&&state!=='menu'&&wreckT<=0&&dmg>0){repairCar();showMsg('REPAIRED','#7cf5c4')}
+  if(e.code==='KeyF'&&state!=='menu')swapCar(e.shiftKey?-1:1);
   if(e.code==='Escape'&&state!=='menu')toMenu();
   if(state==='menu'){if(e.code==='ArrowLeft')setCar(carIdx-1);if(e.code==='ArrowRight')setCar(carIdx+1);if(e.code==='Enter')start('free')}});
 addEventListener('keyup',e=>{const k=km[e.code];if(k){K[k]=false;e.preventDefault()}});
@@ -1347,7 +1348,7 @@ if(TOUCH){document.querySelectorAll('#touch button[data-k]').forEach(b=>{const k
 const COLS=['#c8102e','#0f4fa8','#f2b705','#e9e9ea','#121214','#1f7a4d','#ff6a00','#6b6f76','#7b3fa0'];
 COLS.forEach(c=>{const s=document.createElement('span');s.style.background=c;
   s.onclick=()=>{colorSel=c;CAR.paint.color.set(c);CAR.paintP.color.set(c);if(CAR.glbPaint)CAR.glbPaint.color.set(c);document.querySelectorAll('#cols span').forEach(x=>x.className='');s.className='on'};$('cols').appendChild(s)});
-$('prev').onclick=()=>setCar(carIdx-1);$('next').onclick=()=>setCar(carIdx+1);if(CARS.length<2){$('prev').style.visibility=$('next').style.visibility='hidden'}
+$('swapBtn')&&($('swapBtn').onclick=e=>{e.preventDefault();swapCar(1)});$('prev').onclick=()=>setCar(carIdx-1);$('next').onclick=()=>setCar(carIdx+1);if(CARS.length<2){$('prev').style.visibility=$('next').style.visibility='hidden'}
 let assist=true;$('assist').onchange=e=>assist=e.target.checked;
 
 // ================= crash damage =================
@@ -1559,6 +1560,8 @@ let state='menu',mode='free',score=0,bestDrift=0,cur=0,dtime=0,mult=1,idle=0,tim
 resetCar();setCar(0);
 MAPDEF.forEach(([k,n])=>{const b=document.createElement('button');b.textContent=n;b.dataset.m=k;b.onclick=()=>{b.textContent='Loading…';setTimeout(()=>{setMap(k);b.textContent=n},30)};$('maps').appendChild(b)});
 {let m='city';try{m=localStorage.getItem('driftMap')||'city'}catch(e){}setMap(m)}
+// switch to the next car mid-drive, keeping speed and position
+function swapCar(d){if(CARS.length<2)return;setCar(carIdx+d);gear=Math.min(gear,P.gears.length);if(CAR.loading)CAR.model.visible=true;showMsg(P.name,'#ffd36b')}
 function showMsg(t,c){$('msg').textContent=t;$('msg').style.color=c||'#fff';msgT=1.8}
 function start(m){mode=m;if(CAR&&CAR.loading)CAR.model.visible=true;audio();repairCar();if(AC&&AC.state==='suspended')AC.resume();resetCar();score=0;bestDrift=0;cur=0;dtime=0;mult=1;idle=0;timeLeft=TIME;cd=3;lw=[null,null,null,null];clearSkids();
   for(const k in K)K[k]=false;state='count';$('menu').style.display='none';$('hud').style.display='flex';$('spd').style.display='block';$('pause').style.display='block';$('viewBtn').style.display='block';if(TOUCH)$('touch').style.display='flex';if(m==='multi'){$('plist').style.display='block';cd=1.5;const sp=(NET.id||'x').split('').reduce((a,c)=>a+c.charCodeAt(0),0)%8;{const o=(sp%3-1)*3.6,bk=Math.floor(sp/3)*7,c=Math.cos(car.yaw),s=Math.sin(car.yaw);car.x+=c*o-s*bk;car.z+=-s*o-c*bk}}}
