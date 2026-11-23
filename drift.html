@@ -72,6 +72,7 @@ a{color:#e2e4f0;font-size:14px}
   <div class="modes"><button id="free">FREE DRIVE</button><button id="multi" class="ghost">👥 MULTIPLAYER</button><button id="chal" class="ghost">2-MIN CHALLENGE</button></div>
   <label class="tog"><input type="checkbox" id="assist" checked> Drift assist (auto counter-steer &amp; launch control)</label>
   <div id="keys">↑ / W gas · ↓ / S brake &amp; reverse · ← → / A D steer · SPACE handbrake · C / V change view · R repair · M mute · ESC menu<br>Free Drive has no timer &mdash; drift as long as you like. Keep the slide going to grow your combo.</div>
+  <div id="credit" style="font-size:11px;opacity:.6;margin-top:6px">911 GT3 RS model: <a href="https://sketchfab.com/3d-models/porsche-gt3-rs-e738eae819c34d19a31dd066c45e0f3d" target="_blank" rel="noopener">“Porsche GT3 RS”</a> by Black Snow, <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> (compressed for the web)</div>
   <a href="./">← back to Kosta's Games</a>
 </div>
 <button id="pause">☰ Menu</button><button id="viewBtn">🎥 Chase</button>
@@ -97,6 +98,8 @@ import * as THREE from 'three';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {Sky} from 'three/addons/objects/Sky.js';
 import {Water} from 'three/addons/objects/Water.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
 import {mergeGeometries,mergeVertices} from 'three/addons/utils/BufferGeometryUtils.js';
 import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
 import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
@@ -326,9 +329,9 @@ const CARS=[
   len:4.85,wid:1.82,belt:.98,roof:1.42,cabR:-1.9,roofR:-1.3,roofF:.38,cabF:1.08,noseH:.74,taper:.06,ground:.24,
   wr:.34,ww:.26,track:.8,wbF:1.45,wbR:-1.4,wing:'lip',intakes:false,exh:[.42,-.42],cyl:6,flare:false,canard:false,vent:false,rim:0x9da3aa,camber:.05,doors4:true,
   m:1420,a:1.42,b:1.43,h:.5,mu:1.02,Tpk:620,red:7500,gears:[3.5,2.3,1.65,1.28,1.0,.83],fd:3.7,k:.37,cl:.2,awd:0},
- {name:'VERDE RS',tag:'Rear-engine track coupe · 9,000 rpm flat-6 · swan-neck wing',hp:518,kmh:296,z100:3.2,color:'#163423',num:'',stripe:'#c39a55',dr:[.65,'Medium-hard'],
+ {name:'911 GT3 RS',tag:'Rear-engine track car · 4.0 flat-6, 9,000 rpm · swan-neck wing',glb:'models/gt3rs.glb',hp:518,kmh:296,z100:3.2,color:'#163423',num:'',stripe:'#c39a55',dr:[.65,'Medium-hard'],
   len:4.57,wid:1.9,belt:.8,roof:1.27,cabR:-2.05,roofR:-.5,roofF:.08,cabF:.78,noseH:.5,taper:.2,ground:.17,
-  wr:.35,ww:.32,track:.84,wbF:1.2,wbR:-1.25,wing:'swan',intakes:false,exh:[.1,-.1],cyl:6,flare:false,canard:true,vent:true,rim:0xb38b50,camber:.04,
+  wr:.33,ww:.3,track:.772,wbF:1.166,wbR:-1.29,wing:'swan',intakes:false,exh:[.1,-.1],cyl:6,flare:false,canard:true,vent:true,rim:0xb38b50,camber:.04,
   clean:true,rsAero:true,hips:.075,lightbar:true,aeroRear:true,roundLights:true,slats:true,bigDiff:true,
   m:1450,a:1.49,b:.96,h:.44,mu:1.16,Tpk:465,red:9000,gears:[3.75,2.38,1.72,1.34,1.11,.96,.84],fd:3.97,k:.42,cl:.95,awd:0}];
 
@@ -391,7 +394,36 @@ const numTex={};function numberTex(n,stripe){const k=n+stripe;if(numTex[k])retur
   return numTex[k]=ctex(256,256,(g,w,h)=>{g.clearRect(0,0,w,h);g.fillStyle='#f4f4f0';g.beginPath();g.arc(128,128,118,0,7);g.fill();g.lineWidth=12;g.strokeStyle=stripe;g.stroke();
     g.fillStyle='#111';g.font='900 150px system-ui,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(n,128,138)})}
 const crackM=new THREE.MeshStandardMaterial({color:0x9aa3aa,roughness:.55,metalness:.1,side:THREE.DoubleSide});
-function buildCar(S,color){
+// ---------- detailed 3D car models (glTF) ----------
+const GLB={};
+function loadGLB(url){if(GLB[url])return;GLB[url]={scene:null};new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(url,g=>{GLB[url].scene=g.scene;
+  if(P&&P.glb===url&&CAR)setCar(carIdx);NET.players&&NET.players.forEach(p=>{if(p.obj&&CARS[p.c]&&CARS[p.c].glb===url){scene.remove(p.obj.g);p.obj=null}})},undefined,e=>console.warn('car model failed',e))}
+CARS.forEach(c=>c.glb&&loadGLB(c.glb));
+const toF32=geo=>{const g=new THREE.BufferGeometry();for(const k in geo.attributes){const a=geo.attributes[k],n=a.count,is=a.itemSize,arr=new Float32Array(n*is);for(let i=0;i<n;i++)for(let j=0;j<is;j++)arr[i*is+j]=a.getComponent(i,j);g.setAttribute(k,new THREE.BufferAttribute(arr,is))}
+  if(geo.index)g.setIndex(Array.from(geo.index.array));return g};
+function glbCar(S,color,C){const src=GLB[S.glb].scene,root=new THREE.Group(),dy=S.wr-.304;src.updateMatrixWorld(true);
+  const paint=new THREE.MeshPhysicalMaterial({color,metalness:.12,roughness:.4,clearcoat:1,clearcoatRoughness:.04,envMapIntensity:.6});
+  const isWheel=o=>{for(let q=o;q;q=q.parent)if(/chrome_wheels_20x9\d*$|brakedisc_FR\d+$/.test(q.name))return true;return false};
+  const groups=new Map(),mats={};let brake=null,disc=null;
+  src.traverse(o=>{if(!o.isMesh||isWheel(o))return;let m=o.material;
+    if(/carPaint\.|carPaint_secondary/.test(m.name)&&!m.map)m=paint;
+    else{if(!mats[m.uuid]){const c=m.clone();if(/brakelight/.test(m.name)){c.emissive=new THREE.Color(0xff1010);c.emissiveIntensity=.5;brake=c}if(/glass/.test(m.name)){c.envMapIntensity=1.2}if(/amdb11_brake\./.test(m.name)&&c.emissive){c.emissive=new THREE.Color(0xff3a08);c.emissiveIntensity=0;disc=c}mats[m.uuid]=c}m=mats[m.uuid]}
+    const g=toF32(o.geometry);g.applyMatrix4(o.matrixWorld);g.translate(0,dy,0);const key=m.uuid+'|'+Object.keys(g.attributes).sort().join()+'|'+!!g.index;if(!groups.has(key))groups.set(key,{m,list:[]});groups.get(key).list.push(g)});
+  groups.forEach(({m,list})=>{const geo=list.length>1?mergeGeometries(list):list[0];if(!geo)return;const mesh=new THREE.Mesh(geo,m);mesh.castShadow=mesh.receiveShadow=!m.transparent;root.add(mesh)});
+  // wheels: pivot (steers) -> spin (rolls) -> the model's rim+tyre; discs and calipers only steer
+  const wheels=[],piv=[],pivots=[];
+  [[1,S.wbF],[-1,S.wbF],[1,S.wbR],[-1,S.wbR]].forEach(([sd,z],i)=>{const pv=new THREE.Group();pv.position.set(sd*S.track,S.wr,z);root.add(pv);const sp=new THREE.Group();pv.add(sp);wheels.push(sp);piv.push(pv);if(i<2)pivots.push(pv)});
+  root.updateMatrixWorld(true);
+  const lift=new THREE.Matrix4().makeTranslation(0,dy,0),tmp=new THREE.Vector3();
+  src.traverse(o=>{if(!/chrome_wheels_20x9\d*$|brakedisc_FR\d+$/.test(o.name))return;
+    const c=new THREE.Box3().setFromObject(o).getCenter(tmp);let i=0,bd=1e9;piv.forEach((pv,k)=>{const d=Math.hypot(pv.position.x-c.x,pv.position.z-c.z);if(d<bd){bd=d;i=k}});
+    const tgt=/brakedisc/.test(o.name)?piv[i]:wheels[i],cl=o.clone(true);
+    cl.traverse(q=>{if(q.isMesh){q.castShadow=q.receiveShadow=true;if(mats[q.material.uuid])q.material=mats[q.material.uuid]}});
+    const m=new THREE.Matrix4().copy(tgt.matrixWorld).invert().multiply(lift).multiply(o.matrixWorld);m.decompose(cl.position,cl.quaternion,cl.scale);tgt.add(cl)});
+  C.model.add(root);C.body.visible=false;C.piv4.forEach(p=>p.visible=false);
+  return Object.assign(C,{wheels,pivots,piv4:piv,loose:[],glbPaint:paint,tlM:brake||C.tlM,discM:disc||C.discM,dentGeos:[]})}
+function buildCar(S,color){if(S.glb&&GLB[S.glb]&&GLB[S.glb].scene)return glbCar(S,color,buildCarProc(S,color));return buildCarProc(S,color)}
+function buildCarProc(S,color){
   const g=new THREE.Group(),model=new THREE.Group(),body=new THREE.Group();g.add(model);model.add(body);model.position.z=S.a-S.wbF;
   const L=S.len/2,W=S.wid,b=S.belt;
   const {lower,glass,roof,panes}=carGeos(S,5,8);
@@ -1104,7 +1136,7 @@ if(TOUCH){document.querySelectorAll('#touch button[data-k]').forEach(b=>{const k
     ['pointerup','pointercancel','pointerleave'].forEach(ev=>b.addEventListener(ev,()=>K[k]=false))})}
 const COLS=['#c8102e','#0f4fa8','#f2b705','#e9e9ea','#121214','#1f7a4d','#ff6a00','#6b6f76','#7b3fa0'];
 COLS.forEach(c=>{const s=document.createElement('span');s.style.background=c;
-  s.onclick=()=>{colorSel=c;CAR.paint.color.set(c);CAR.paintP.color.set(c);document.querySelectorAll('#cols span').forEach(x=>x.className='');s.className='on'};$('cols').appendChild(s)});
+  s.onclick=()=>{colorSel=c;CAR.paint.color.set(c);CAR.paintP.color.set(c);if(CAR.glbPaint)CAR.glbPaint.color.set(c);document.querySelectorAll('#cols span').forEach(x=>x.className='');s.className='on'};$('cols').appendChild(s)});
 $('prev').onclick=()=>setCar(carIdx-1);$('next').onclick=()=>setCar(carIdx+1);
 let assist=true;$('assist').onchange=e=>assist=e.target.checked;
 
