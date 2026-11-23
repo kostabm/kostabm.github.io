@@ -454,14 +454,14 @@ function buildCar(S,color){
   const wg=grp(0,0,0);
   if(S.wing==='big'||S.wing==='gt'){const hgt=S.wing==='big'?.36:.26,span=S.wing==='big'?W*.95:W*.84;[.42,-.42].forEach(x=>add(new THREE.BoxGeometry(.03,hgt+.04,.14),carbon,x,b+hgt/2+.02,-L+.4,0,wg));
     add(new RoundedBoxGeometry(span,.05,.36,2,.02),carbon,0,b+hgt+.02,-L+.34,.14,wg);[span/2,-span/2].forEach(x=>add(new THREE.BoxGeometry(.015,.22,.44),carbon,x,b+hgt,-L+.34,0,wg));part(wg,1.1)}
-  else if(S.wing==='swan'){const wy=S.roof+.08,wz=-L+.3,span=W*.98,ch=.5;
+  else if(S.wing==='swan'){const wy=S.roof+.06,wz=-L+.5,span=W*.98,ch=.48;
     [.36,-.36].forEach(x=>{const c=new THREE.CatmullRomCurve3([new THREE.Vector3(x,b+.02,-L+.95),new THREE.Vector3(x,b+.3,-L+.78),new THREE.Vector3(x,wy+.12,wz+.2),new THREE.Vector3(x,wy+.05,wz+.02)]);
       const tg=new THREE.TubeGeometry(c,16,.035,6);tg.scale(1,1,1);const m=add(tg,carbon,0,0,0,0,wg);m.scale.x=.4;m.position.x=x*.6});
     const wingS=new THREE.Shape();wingS.moveTo(0,0);wingS.bezierCurveTo(.12,.07,.35,.06,ch,-.01);wingS.lineTo(ch,-.03);wingS.bezierCurveTo(.35,.0,.12,.0,0,-.03);wingS.closePath();
     const wgeo=new THREE.ExtrudeGeometry(wingS,{depth:span,bevelEnabled:false,curveSegments:10});wgeo.translate(0,0,-span/2);wgeo.rotateY(Math.PI/2);
     add(wgeo,carbon,0,wy,wz+ch/2,.14,wg);
     const wgeo2=wgeo.clone();wgeo2.scale(1,.8,.55);add(wgeo2,carbon,0,wy+.07,wz-ch/2+.06,.5,wg);
-    [span/2+.01,-span/2-.01].forEach(x=>{const ep=new THREE.Shape();ep.moveTo(.35,-.12);ep.lineTo(-.4,-.12);ep.lineTo(-.45,.28);ep.lineTo(.2,.3);ep.closePath();
+    [span/2+.01,-span/2-.01].forEach(x=>{const ep=new THREE.Shape();ep.moveTo(.08,-.1);ep.lineTo(-.55,-.1);ep.lineTo(-.58,.2);ep.lineTo(-.05,.22);ep.closePath();
       const eg=new THREE.ExtrudeGeometry(ep,{depth:.012,bevelEnabled:false});eg.rotateY(Math.PI/2);add(eg,carbon,x,wy,wz,0,wg)});
     add(new THREE.BoxGeometry(W*.82,.05,.18),paintP,0,b+.06,-L+.12,.35,wg);part(wg,1.1)}
   else if(S.wing==='duck'){add(new THREE.BoxGeometry(W*.82,.035,.26),paintP,0,b+.03,-L+.16,.25,wg);part(wg,1.4)}
