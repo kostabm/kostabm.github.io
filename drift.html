@@ -119,7 +119,7 @@ import {RGBELoader} from 'three/addons/loaders/RGBELoader.js';
 const $=id=>document.getElementById(id);
 const store={get(k){try{return +localStorage.getItem(k)||0}catch(e){return 0}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 let seed=7;const R=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646};
-const TOUCH='ontouchstart' in window, LOW=TOUCH||Math.min(innerWidth,innerHeight)<600;
+const TOUCH='ontouchstart' in window,FINE=matchMedia('(pointer:fine)').matches,LOW=(TOUCH&&!FINE)||Math.min(innerWidth,innerHeight)<500;
 
 // ================= renderer =================
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',logarithmicDepthBuffer:true});renderer.localClippingEnabled=true;
@@ -1288,7 +1288,7 @@ function buildEarth(){const g=grpFor();TGT=g;
   showMsg('LOADING REAL WORLD…','#7cf5c4');
   import('https://cdn.jsdelivr.net/npm/3d-tiles-renderer@0.3.46/src/index.js').then(T=>{
     const tiles=new T.TilesRenderer();tiles.registerPlugin(new T.CesiumIonAuthPlugin({apiToken:CESIUM.token,assetId:CESIUM.asset,autoRefreshToken:true}));
-    tiles.errorTarget=LOW?16:5;tiles.setLatLonToYUp(CESIUM.lat*Math.PI/180,CESIUM.lon*Math.PI/180);
+    st.err0=LOW?12:4;tiles.errorTarget=st.err0;tiles.setLatLonToYUp(CESIUM.lat*Math.PI/180,CESIUM.lon*Math.PI/180);
     tiles.addEventListener('load-model',({scene})=>scene.traverse(o=>{if(o.isMesh){o.receiveShadow=true;if(o.material)o.material.toneMapped=false}}));
     tiles.setCamera(camera);holder.add(tiles.group);st.tiles=tiles}).catch(e=>{st.err=e;console.warn('3D tiles failed',e);showMsg('REAL WORLD COULD NOT LOAD','#ff7a7a')});
   const ray=new THREE.Raycaster(),down=new THREE.Vector3(0,-1,0),o=new THREE.Vector3();
@@ -1298,7 +1298,7 @@ function buildEarth(){const g=grpFor();TGT=g;
   const groundAt=(x,z)=>{const ys=hitsAt(x,z,st.h+600);if(!ys.length)return null;const ok=ys.filter(y=>y<=st.h+2.5);return ok.length?Math.max(...ok):Math.min(...ys)};
   const gy=(x,z)=>st.h+st.gx*(x-st.x0)+st.gz*(z-st.z0);
   const tick=dt=>{const tl=st.tiles;if(!tl)return;st.t+=dt;
-    camera.updateMatrixWorld();tl.setResolutionFromRenderer(camera,renderer);tl.update();
+    camera.updateMatrixWorld();tl.errorTarget=st.err0;tl.downloadQueue.maxJobs=LOW?12:24;tl.parseQueue.maxJobs=LOW?4:8;tl.setResolutionFromRenderer(camera,renderer);tl.update();
     if(!st.ready){car.x=0;car.z=0;car.vx=car.vz=0;car.r=0;
       // keep re-measuring while sharper tiles stream in; only start once the ground height has settled
       if((st.t*4|0)!==((st.t-dt)*4|0)){const ys=hitsAt(0,0,9000);if(ys.length){const h=ys[0];holder.position.y-=h;holder.updateMatrixWorld(true);st.h=0;
@@ -1322,7 +1322,12 @@ function applyLight(){const b=LIGHT.base;if(!b)return;const t=MAP?MAP.light:'sun
   scene.backgroundIntensity=t==='night'?.025:alp?1:b.bgI;sun.intensity=t==='night'?.35:alp?3.1:t==='day'?b.sunI*1.15:b.sunI;hemi.intensity=t==='night'?.08:alp?.2:b.hemiI;
   renderer.toneMappingExposure=t==='night'?.75:alp?.48:b.exp;scene.fog.color.copy(t==='night'?new THREE.Color(0x0a0d16):alp?new THREE.Color(0x8ea6bd):b.fog);scene.fog.density=t==='night'?.0016:alp?(MAP.fogD||.0004):t==='day'?b.fogD*.7:b.fogD;
   if(t==='night')sun.color.set(0x8fa8ff);else if(alp)sun.color.set(0xfff1de);else sun.color.copy(b.sunC);
-  bloom.strength=t==='night'?.6:alp?.16:.38}
+  bloom.strength=t==='night'?.6:alp?.16:.38;
+  // Real World: show Google's photos in their true colours (no film look), with a real-sky gradient and matching car light
+  const earth=!!(MAP&&MAP.earth);renderer.toneMapping=earth?THREE.NoToneMapping:THREE.ACESFilmicToneMapping;bloom.enabled=!earth&&!LOW;film.enabled=!earth;
+  if(earth){renderer.toneMappingExposure=1;scene.background=realSky();scene.backgroundIntensity=1;sun.intensity=1.45;sun.color.set(0xfff4e6);hemi.intensity=.45;hemi.color.set(0xcfe0f5);hemi.groundColor.set(0x6b6354);scene.fog.color.set(0xc6d6e6);scene.fog.density=MAP.fogD}}
+let REALSKY=null;function realSky(){if(REALSKY)return REALSKY;REALSKY=ctex(64,512,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#2f6db8');gr.addColorStop(.32,'#5b93d6');gr.addColorStop(.47,'#a9c8ea');gr.addColorStop(.5,'#c6d6e6');gr.addColorStop(.53,'#b9b4a6');gr.addColorStop(1,'#6b6354');g.fillStyle=gr;g.fillRect(0,0,w,h)});
+  REALSKY.mapping=THREE.EquirectangularReflectionMapping;return REALSKY}
 function setMap(k,silent){const d=MAPDEF.find(m=>m[0]===k)||MAPDEF[0];k=d[0];
   if(k==='tahoe'&&!DEM.ready&&!DEM.failed&&!MAPS.tahoe){const b=document.querySelector('#maps button[data-m=tahoe]');if(b)b.textContent='Loading real terrain…';DEM.promise.then(()=>{if(b)b.textContent=d[1];setMap(k,silent)});return}
   if(!MAPS[k])MAPS[k]=d[2]();for(const kk in MAPS)MAPS[kk].g.visible=kk===k;MAP=MAPS[k];mapKey=k;applyLight();$('attrib').style.display=MAP.earth?'block':'none';camera.far=MAP.far||1400;camera.updateProjectionMatrix();
