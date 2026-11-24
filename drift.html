@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<link rel="manifest" href="app/drift.webmanifest"><meta name="theme-color" content="#0b0d17"><link rel="apple-touch-icon" href="app/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Drift King">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <title>Drift King · Kosta's Games</title>
 <style>
@@ -55,6 +56,8 @@ a{color:#e2e4f0;font-size:14px}
 #menu{overflow-y:auto;overscroll-behavior:contain;justify-content:flex-start!important}#menu>*{flex-shrink:0}#menu::before{content:'';flex:1 0 0}
 #garage{max-width:100%}#carinfo{min-width:0;flex:1 1 auto;width:min(78vw,380px)}.arr{flex:0 0 auto}
 #credit summary{cursor:pointer}
+@media (display-mode:fullscreen),(display-mode:standalone){#menu a[href="./"]{display:none}}
+#installBtn{display:none}
 @media (min-width:900px){#menu::before{flex:1 0 0}#menu::after{content:'';flex:1 0 0}.maps{justify-content:flex-start;max-width:480px}#menu{align-items:flex-start;justify-content:center;text-align:left;padding:30px 0 30px 5vw;background:linear-gradient(90deg,rgba(11,13,23,.88) 0%,rgba(11,13,23,.55) 38%,rgba(11,13,23,0) 60%)}#menu h1{font-size:64px}#keys{max-width:430px}.modes{justify-content:flex-start}}
 </style>
 </head>
@@ -76,6 +79,7 @@ a{color:#e2e4f0;font-size:14px}
   <label class="tog"><input type="checkbox" id="assist" checked> Drift assist (auto counter-steer &amp; launch control)</label>
   <div id="keys">↑ / W gas · ↓ / S brake &amp; reverse · ← → / A D steer · SPACE handbrake · C / V change view · F change car · R repair · M mute · ESC menu<br>Free Drive has no timer &mdash; drift as long as you like. Keep the slide going to grow your combo.</div>
   <details id="credit" style="font-size:11px;opacity:.6;margin-top:6px;max-width:560px"><summary>Credits</summary>911 GT3 RS model: <a href="https://sketchfab.com/3d-models/porsche-gt3-rs-e738eae819c34d19a31dd066c45e0f3d" target="_blank" rel="noopener">“Porsche GT3 RS”</a> by Black Snow, <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> (compressed for the web) · Koenigsegg Jesko model: <a href="https://sketchfab.com/3d-models/2020-koenigsegg-jesko-c657f51fb0db43e38fea172dfa385287" target="_blank" rel="noopener">“2020 Koenigsegg Jesko”</a> by Ddiaz Design, CC BY 4.0 · Pagani model: <a href="https://sketchfab.com/3d-models/2025-pagani-huayra-r-evo-roadster-4950e65962044c8b90d0e1b140ca9868" target="_blank" rel="noopener">“2025 Pagani Huayra R Evo Roadster”</a> by Ddiaz Design, <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a> (non-commercial; the compressed model is shared under the same licence) · Bugatti model: <a href="https://sketchfab.com/3d-models/1994-bugatti-eb110-lm-a5f120acfb3143fe804b24689115b871" target="_blank" rel="noopener">“1994 Bugatti EB110 LM”</a> by Dave Love, CC BY 4.0 · South Lake Tahoe terrain: AWS Terrain Tiles (USGS 3DEP) · Imagery: <a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless</a> by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2016), CC BY 4.0</details>
+  <button id="installBtn" class="ghost">📲 Install Drift King app</button>
   <a href="./">← back to Kosta's Games</a>
 </div>
 <button id="pause">☰ Menu</button><button id="viewBtn">🎥 Chase</button>
@@ -1274,7 +1278,7 @@ function buildEarth(){const g=grpFor();TGT=g;
   showMsg('LOADING REAL WORLD…','#7cf5c4');
   import('https://cdn.jsdelivr.net/npm/3d-tiles-renderer@0.3.46/src/index.js').then(T=>{
     const tiles=new T.TilesRenderer();tiles.registerPlugin(new T.CesiumIonAuthPlugin({apiToken:CESIUM.token,assetId:CESIUM.asset,autoRefreshToken:true}));
-    tiles.errorTarget=LOW?24:10;tiles.setLatLonToYUp(CESIUM.lat*Math.PI/180,CESIUM.lon*Math.PI/180);
+    tiles.errorTarget=LOW?16:5;tiles.setLatLonToYUp(CESIUM.lat*Math.PI/180,CESIUM.lon*Math.PI/180);
     tiles.addEventListener('load-model',({scene})=>scene.traverse(o=>{if(o.isMesh){o.receiveShadow=true;if(o.material)o.material.toneMapped=false}}));
     tiles.setCamera(camera);holder.add(tiles.group);st.tiles=tiles}).catch(e=>{st.err=e;console.warn('3D tiles failed',e);showMsg('REAL WORLD COULD NOT LOAD','#ff7a7a')});
   const ray=new THREE.Raycaster(),down=new THREE.Vector3(0,-1,0),o=new THREE.Vector3();
@@ -1297,7 +1301,7 @@ function buildEarth(){const g=grpFor();TGT=g;
     if((st.attT-=dt)<=0){st.attT=1;const a=tl.getAttributions().map(v=>String(v.value).replace(/<[^>]*>/g,'')).filter(Boolean);
       $('attrib').innerHTML='<b style="font-family:Arial,sans-serif;letter-spacing:-.02em">Google</b> · '+[...new Set(a)].join(' · ').replace(/</g,'&lt;')+' · 3D tiles via Cesium ion'}};
   TGT=scene;
-  return {name:'Real World 3D',g,boxes:[],segs:[],circ:[],hx:20000,hz:20000,spawn:[0,0,Math.PI*.75],light:'alpine',far:30000,fogD:.00004,gy,tick,earth:true}}
+  return {name:'Real World 3D',g,boxes:[],segs:[],circ:[],hx:20000,hz:20000,spawn:[0,0,Math.PI*.75],light:'alpine',far:40000,fogD:.000018,gy,tick,earth:true}}
 
 const MAPDEF=[['city','🏙️ Downtown',null],['pass','⛰️ Mountain Pass',buildPass],['tahoe','🌲 South Lake Tahoe',buildTahoe],['earth','🌍 Real World 3D',buildEarth],['docks','⚓ Harbor Docks',buildDocks],['air','✈️ Airfield at Night',buildAirfield]];
 const LIGHT={base:null};
@@ -1702,6 +1706,9 @@ function loop(now){film.uniforms.t.value=now*.001%100;const dt=Math.min(.033,(no
   requestAnimationFrame(loop)}
 $('load').remove();$('menu').style.display='flex';
 requestAnimationFrame(loop);
+// installable app: service worker + install button
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('drift-sw.js').catch(e=>console.warn('sw',e));
+{let ip=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();ip=e;$('installBtn').style.display='block'});$('installBtn').onclick=async()=>{if(!ip)return;ip.prompt();await ip.userChoice;ip=null;$('installBtn').style.display='none'};addEventListener('appinstalled',()=>{$('installBtn').style.display='none'})}
 window.__game={setMap:k=>setMap(k),get dmg(){return dmg},step(n){for(let i=0;i<n;i++)update(1/60)},get state(){return state},get map(){return MAP},get carObj(){return CAR},get spec(){return P},pick(nx,ny){const rc=new THREE.Raycaster();rc.setFromCamera(new THREE.Vector2(nx,ny),camera);const vis=o=>{for(;o;o=o.parent)if(!o.visible)return false;return true};const h=rc.intersectObject(CAR.g,true).find(x=>vis(x.object)&&x.object.isMesh&&x.distance>.15);if(!h)return null;const l=CAR.body.worldToLocal(h.point.clone());return {p:l.toArray().map(v=>+v.toFixed(3)),mat:h.object.material.name,name:h.object.name,d:+h.distance.toFixed(3)}},get car(){return car},K,get score(){return score},get cur(){return cur},start,setCar,
   get info(){return {gear,rpm:rpm|0,wR:+wR.toFixed(1),beta:+beta.toFixed(2),sigR:+sigR.toFixed(2)}},setAssist(v){assist=v},enterRoom,get net(){return {host:NET.host,room:NET.room,players:[...NET.players.values()].map(p=>({n:p.n,x:p.x|0,z:p.z|0,c:p.c,has:!!p.obj}))}}};
 </script>

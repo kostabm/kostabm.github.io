@@ -1,0 +1,18 @@
+{
+  "id": "/drift.html",
+  "name": "Drift King",
+  "short_name": "Drift King",
+  "description": "Realistic drifting in real places — GT3 RS, Jesko, Huayra R Evo and EB110 LM.",
+  "start_url": "../drift.html?app=1",
+  "scope": "../",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#0b0d17",
+  "theme_color": "#0b0d17",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
