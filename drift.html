@@ -1270,23 +1270,28 @@ const CESIUM={token:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IkU2amNWSm
   asset:2275207,lat:38.9557,lon:-119.9426};// start in South Lake Tahoe, near Heavenly Village
 function buildEarth(){const g=grpFor();TGT=g;
   const st={tiles:null,ready:false,h:0,gx:0,gz:0,x0:0,z0:0,t:0,err:null,attT:0};
-  const holder=new THREE.Group();holder.rotation.y=Math.PI/2;g.add(holder);// tiles come in with X = north; turn so north is -Z like the other maps
+  const holder=new THREE.Group();holder.rotation.y=Math.PI/2;holder.position.y=-1875;g.add(holder);// start near Tahoe's real altitude so detailed tiles load around the car straight away// tiles come in with X = north; turn so north is -Z like the other maps
   showMsg('LOADING REAL WORLD…','#7cf5c4');
   import('https://cdn.jsdelivr.net/npm/3d-tiles-renderer@0.3.46/src/index.js').then(T=>{
     const tiles=new T.TilesRenderer();tiles.registerPlugin(new T.CesiumIonAuthPlugin({apiToken:CESIUM.token,assetId:CESIUM.asset,autoRefreshToken:true}));
     tiles.errorTarget=LOW?24:10;tiles.setLatLonToYUp(CESIUM.lat*Math.PI/180,CESIUM.lon*Math.PI/180);
     tiles.addEventListener('load-model',({scene})=>scene.traverse(o=>{if(o.isMesh){o.receiveShadow=true;if(o.material)o.material.toneMapped=false}}));
     tiles.setCamera(camera);holder.add(tiles.group);st.tiles=tiles}).catch(e=>{st.err=e;console.warn('3D tiles failed',e);showMsg('REAL WORLD COULD NOT LOAD','#ff7a7a')});
-  const ray=new THREE.Raycaster(),down=new THREE.Vector3(0,-1,0),o=new THREE.Vector3();ray.firstHitOnly=true;
-  const hitAt=(x,z,from)=>{o.set(x,from,z);ray.set(o,down);ray.far=from+6000;const h=ray.intersectObject(holder,true)[0];return h?h.point.y:null};
+  const ray=new THREE.Raycaster(),down=new THREE.Vector3(0,-1,0),o=new THREE.Vector3();
+  const hitsAt=(x,z,from)=>{o.set(x,from,z);ray.set(o,down);ray.far=from+6000;return ray.intersectObject(holder,true).map(h=>h.point.y)};
+  // ground under the car: the highest surface no more than a kerb above it (so it drives under trees and bridges);
+  // if every surface is above the car, it has ended up underground, so take the lowest one (the real ground above)
+  const groundAt=(x,z)=>{const ys=hitsAt(x,z,st.h+600);if(!ys.length)return null;const ok=ys.filter(y=>y<=st.h+2.5);return ok.length?Math.max(...ok):Math.min(...ys)};
   const gy=(x,z)=>st.h+st.gx*(x-st.x0)+st.gz*(z-st.z0);
   const tick=dt=>{const tl=st.tiles;if(!tl)return;st.t+=dt;
     camera.updateMatrixWorld();tl.setResolutionFromRenderer(camera,renderer);tl.update();
     if(!st.ready){car.x=0;car.z=0;car.vx=car.vz=0;car.r=0;
-      if((st.t*4|0)!==((st.t-dt)*4|0)){const h=hitAt(0,0,9000);if(h!==null){holder.position.y-=h;holder.updateMatrixWorld(true);st.ready=true;st.h=0;showMsg('REAL WORLD — DRIVE ANYWHERE','#7cf5c4')}}
+      // keep re-measuring while sharper tiles stream in; only start once the ground height has settled
+      if((st.t*4|0)!==((st.t-dt)*4|0)){const ys=hitsAt(0,0,9000);if(ys.length){const h=ys[0];holder.position.y-=h;holder.updateMatrixWorld(true);st.h=0;
+        st.stable=Math.abs(h)<.3?(st.stable||0)+1:0;if(st.stable>=8&&st.t>4){st.ready=true;showMsg('REAL WORLD — DRIVE ANYWHERE','#7cf5c4')}}}
       if(st.t>25&&!st.warned){st.warned=true;showMsg('STILL LOADING 3D WORLD…','#ffd36b')}}
-    else{const from=st.h+3.5,x=car.x,z=car.z;let h0=hitAt(x,z,from);if(h0===null)h0=hitAt(x,z,st.h+300);
-      if(h0!==null){const hx=hitAt(x+2,z,from),hz=hitAt(x,z+2,from);st.x0=x;st.z0=z;
+    else{const x=car.x,z=car.z,h0=groundAt(x,z);
+      if(h0!==null){const hx=groundAt(x+2,z),hz=groundAt(x,z+2);st.x0=x;st.z0=z;if(h0>st.h+2.5)st.h=h0;// popped up out of the ground
         st.h+=(h0-st.h)*Math.min(1,dt*(h0<st.h?20:12));// smooth over kerbs and small bumps
         st.gx=hx===null?0:THREE.MathUtils.clamp((hx-h0)/2,-.5,.5);st.gz=hz===null?0:THREE.MathUtils.clamp((hz-h0)/2,-.5,.5)}}
     if((st.attT-=dt)<=0){st.attT=1;const a=tl.getAttributions().map(v=>String(v.value).replace(/<[^>]*>/g,'')).filter(Boolean);
