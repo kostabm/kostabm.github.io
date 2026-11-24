@@ -90,11 +90,12 @@ a{color:#e2e4f0;font-size:14px}
   <button id="lback" class="ghost">Back</button>
 </div></div>
 <div id="plist"></div>
+<div id="attrib" style="display:none;position:fixed;left:8px;bottom:6px;z-index:5;max-width:70vw;font:11px/1.3 system-ui,sans-serif;color:#fff;text-shadow:0 1px 2px #000;pointer-events:none"></div>
 <div id="load">Building the city…</div>
 
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script type="importmap">
-{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/jsm/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/jsm/loaders/GLTFLoader":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js","three/examples/jsm/loaders/DRACOLoader":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js","three/examples/jsm/loaders/KTX2Loader":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/KTX2Loader.js"}}
 </script>
 <script type="module">
 import * as THREE from 'three';
@@ -1263,7 +1264,37 @@ function buildTahoe(){if(!DEM.ready)return buildTahoeProc();
   let si=0,sd2=1e9;pts.forEach((p,i)=>{const d=Math.hypot(p.x+250,p.z+340);if(d<sd2){sd2=d;si=i}});const sp=pts[si],sq=pts[(si+3)%N];
   return {name:'South Lake Tahoe',g,boxes,segs:[],circ:cl,hx:3600,hz:3600,spawn:[sp.x,sp.z,Math.atan2(sq.x-sp.x,sq.z-sp.z)],light:'alpine',far:60000,fogD:.00006,surf,corr:RF,corrMax:24,tick,pre,pts,gy,real:true}}
 
-const MAPDEF=[['city','🏙️ Downtown',null],['pass','⛰️ Mountain Pass',buildPass],['tahoe','🌲 South Lake Tahoe',buildTahoe],['docks','⚓ Harbor Docks',buildDocks],['air','✈️ Airfield at Night',buildAirfield]];
+// ================= Real World 3D: Google Photorealistic 3D Tiles streamed through Cesium ion =================
+// The token is public by design: it is read-only, limited to this one asset, and only works on kostabm.github.io.
+const CESIUM={token:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IkU2amNWSmw1SlFHT3ktZUMiLCJqdGkiOiJmNzBhYjM0Yi1lYTIyLTRkM2YtYmFhOS05ZGZkYzEwN2M2N2EiLCJpZCI6NTU1MDcyLCJzdWIiOiJub3RoaW5nZ2cyMTM5NyIsImlzcyI6Imh0dHBzOi8vYXBpLmNlc2l1bS5jb20iLCJhdWQiOiJkcmlmdC1nYW1lIiwiaWF0IjoxNzk1NDg1NzIwfQ.UH5KE7NsX-i8o8WEA6ub7sIFgJyTIiGGmeT9WJrRjgQ',
+  asset:2275207,lat:38.9557,lon:-119.9426};// start in South Lake Tahoe, near Heavenly Village
+function buildEarth(){const g=grpFor();TGT=g;
+  const st={tiles:null,ready:false,h:0,gx:0,gz:0,x0:0,z0:0,t:0,err:null,attT:0};
+  const holder=new THREE.Group();holder.rotation.y=Math.PI/2;g.add(holder);// tiles come in with X = north; turn so north is -Z like the other maps
+  showMsg('LOADING REAL WORLD…','#7cf5c4');
+  import('https://cdn.jsdelivr.net/npm/3d-tiles-renderer@0.3.46/src/index.js').then(T=>{
+    const tiles=new T.TilesRenderer();tiles.registerPlugin(new T.CesiumIonAuthPlugin({apiToken:CESIUM.token,assetId:CESIUM.asset,autoRefreshToken:true}));
+    tiles.errorTarget=LOW?24:10;tiles.setLatLonToYUp(CESIUM.lat*Math.PI/180,CESIUM.lon*Math.PI/180);
+    tiles.addEventListener('load-model',({scene})=>scene.traverse(o=>{if(o.isMesh){o.receiveShadow=true;if(o.material)o.material.toneMapped=false}}));
+    tiles.setCamera(camera);holder.add(tiles.group);st.tiles=tiles}).catch(e=>{st.err=e;console.warn('3D tiles failed',e);showMsg('REAL WORLD COULD NOT LOAD','#ff7a7a')});
+  const ray=new THREE.Raycaster(),down=new THREE.Vector3(0,-1,0),o=new THREE.Vector3();ray.firstHitOnly=true;
+  const hitAt=(x,z,from)=>{o.set(x,from,z);ray.set(o,down);ray.far=from+6000;const h=ray.intersectObject(holder,true)[0];return h?h.point.y:null};
+  const gy=(x,z)=>st.h+st.gx*(x-st.x0)+st.gz*(z-st.z0);
+  const tick=dt=>{const tl=st.tiles;if(!tl)return;st.t+=dt;
+    camera.updateMatrixWorld();tl.setResolutionFromRenderer(camera,renderer);tl.update();
+    if(!st.ready){car.x=0;car.z=0;car.vx=car.vz=0;car.r=0;
+      if((st.t*4|0)!==((st.t-dt)*4|0)){const h=hitAt(0,0,9000);if(h!==null){holder.position.y-=h;holder.updateMatrixWorld(true);st.ready=true;st.h=0;showMsg('REAL WORLD — DRIVE ANYWHERE','#7cf5c4')}}
+      if(st.t>25&&!st.warned){st.warned=true;showMsg('STILL LOADING 3D WORLD…','#ffd36b')}}
+    else{const from=st.h+3.5,x=car.x,z=car.z;let h0=hitAt(x,z,from);if(h0===null)h0=hitAt(x,z,st.h+300);
+      if(h0!==null){const hx=hitAt(x+2,z,from),hz=hitAt(x,z+2,from);st.x0=x;st.z0=z;
+        st.h+=(h0-st.h)*Math.min(1,dt*(h0<st.h?20:12));// smooth over kerbs and small bumps
+        st.gx=hx===null?0:THREE.MathUtils.clamp((hx-h0)/2,-.5,.5);st.gz=hz===null?0:THREE.MathUtils.clamp((hz-h0)/2,-.5,.5)}}
+    if((st.attT-=dt)<=0){st.attT=1;const a=tl.getAttributions().map(v=>String(v.value).replace(/<[^>]*>/g,'')).filter(Boolean);
+      $('attrib').innerHTML='<b style="font-family:Arial,sans-serif;letter-spacing:-.02em">Google</b> · '+[...new Set(a)].join(' · ').replace(/</g,'&lt;')+' · 3D tiles via Cesium ion'}};
+  TGT=scene;
+  return {name:'Real World 3D',g,boxes:[],segs:[],circ:[],hx:20000,hz:20000,spawn:[0,0,Math.PI*.75],light:'alpine',far:30000,fogD:.00004,gy,tick,earth:true}}
+
+const MAPDEF=[['city','🏙️ Downtown',null],['pass','⛰️ Mountain Pass',buildPass],['tahoe','🌲 South Lake Tahoe',buildTahoe],['earth','🌍 Real World 3D',buildEarth],['docks','⚓ Harbor Docks',buildDocks],['air','✈️ Airfield at Night',buildAirfield]];
 const LIGHT={base:null};
 function applyLight(){const b=LIGHT.base;if(!b)return;const t=MAP?MAP.light:'sunset',alp=t==='alpine';
   if(LIGHT.dirFor!==b){LIGHT.dirFor=b;LIGHT.dir0=sunDir.clone();LIGHT.bg0=scene.background;LIGHT.env0=scene.environment}
@@ -1275,7 +1306,7 @@ function applyLight(){const b=LIGHT.base;if(!b)return;const t=MAP?MAP.light:'sun
   bloom.strength=t==='night'?.6:alp?.16:.38}
 function setMap(k,silent){const d=MAPDEF.find(m=>m[0]===k)||MAPDEF[0];k=d[0];
   if(k==='tahoe'&&!DEM.ready&&!DEM.failed&&!MAPS.tahoe){const b=document.querySelector('#maps button[data-m=tahoe]');if(b)b.textContent='Loading real terrain…';DEM.promise.then(()=>{if(b)b.textContent=d[1];setMap(k,silent)});return}
-  if(!MAPS[k])MAPS[k]=d[2]();for(const kk in MAPS)MAPS[kk].g.visible=kk===k;MAP=MAPS[k];mapKey=k;applyLight();camera.far=MAP.far||1400;camera.updateProjectionMatrix();
+  if(!MAPS[k])MAPS[k]=d[2]();for(const kk in MAPS)MAPS[kk].g.visible=kk===k;MAP=MAPS[k];mapKey=k;applyLight();$('attrib').style.display=MAP.earth?'block':'none';camera.far=MAP.far||1400;camera.updateProjectionMatrix();
   try{localStorage.setItem('driftMap',k)}catch(e){}
   document.querySelectorAll('#maps button').forEach(b=>b.classList.toggle('on',b.dataset.m===k));
   debris.forEach(o=>o.parent&&o.parent.remove(o));debris.length=0;clearSkids();resetCar();CAR.g.position.set(car.x,0,car.z);CAR.g.rotation.y=car.yaw}
