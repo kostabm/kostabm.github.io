@@ -132,10 +132,20 @@ const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,1400);
 const composer=new EffectComposer(renderer,new THREE.WebGLRenderTarget(innerWidth*renderer.getPixelRatio(),innerHeight*renderer.getPixelRatio(),{type:THREE.HalfFloatType,samples:LOW?0:4}));composer.addPass(new RenderPass(scene,camera));
 const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),.38,.55,.88);if(!LOW)composer.addPass(bloom);
+// speed blur: the edges of the picture streak at high speed, the centre stays sharp (like a real camera)
+const speedBlur=new ShaderPass({uniforms:{tDiffuse:{value:null},amt:{value:0}},vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+  fragmentShader:'uniform sampler2D tDiffuse;uniform float amt;varying vec2 vUv;void main(){vec2 d=vUv-.5;float k=amt*smoothstep(.12,.6,length(d));vec4 c=vec4(0.);for(int i=0;i<10;i++){c+=texture2D(tDiffuse,vUv-d*k*float(i)/9.);}gl_FragColor=c/10.;}'});
+speedBlur.enabled=false;composer.addPass(speedBlur);
 composer.addPass(new OutputPass());
 const film=new ShaderPass({uniforms:{tDiffuse:{value:null},t:{value:0}},vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
   fragmentShader:'uniform sampler2D tDiffuse;uniform float t;varying vec2 vUv;float h(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233))+t)*43758.5453);}void main(){vec4 c=texture2D(tDiffuse,vUv);vec2 d=vUv-.5;c.rgb*=1.-dot(d,d)*.55;c.rgb+=(h(vUv*vec2(1920.,1080.))-.5)*.025;gl_FragColor=c;}'});
 composer.addPass(film);
+// live reflections: the surroundings are captured around the car a few times a second
+const carRT=LOW?null:new THREE.WebGLCubeRenderTarget(256,{type:THREE.HalfFloatType}),carCam=carRT?new THREE.CubeCamera(.4,4000,carRT):null;let envN=0;
+function carReflections(){if(!carRT||!CAR)return;if((envN++%4)!==0)return;
+  CAR.g.visible=false;carCam.position.set(car.x,gyAt(car.x,car.z)+1.05,car.z);const au=renderer.shadowMap.autoUpdate;renderer.shadowMap.autoUpdate=false;carCam.update(renderer,scene);renderer.shadowMap.autoUpdate=au;CAR.g.visible=true}
+function applyCarEnv(C){if(!carRT||!C)return;C.g.traverse(o=>{if(o.isMesh&&o.material){(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{if(m.isMeshStandardMaterial)m.envMap=carRT.texture})}})}
+
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight)});
 
 // ================= sky + sun =================
@@ -730,7 +740,7 @@ let carIdx=0,P=CARS[0],CAR=null,colorSel=null;
 function setCar(i){carIdx=(i+CARS.length)%CARS.length;P=CARS[carIdx];
   if(CAR){scene.remove(CAR.g);CAR.g.traverse(o=>{if(o.geometry)o.geometry.dispose()})}
   debris.forEach(o=>o.parent&&o.parent.remove(o));debris.length=0;dmg=0;pull=0;wreckT=0;
-  CAR=buildCar(P,colorSel||P.color);scene.add(CAR.g);CAR.paint.clippingPlanes=CAR.clipW;CAR.paint.clipIntersection=true;if($('dmgv'))updDmg();
+  CAR=buildCar(P,colorSel||P.color);scene.add(CAR.g);applyCarEnv(CAR);CAR.paint.clippingPlanes=CAR.clipW;CAR.paint.clipIntersection=true;if($('dmgv'))updDmg();
   $('cname').textContent=P.name;$('ctag').textContent=CAR.loading?'Loading 3D model…':P.tag;
   const bar=(l,v,t)=>`<div class="st"><span>${l}</span><i><b style="width:${Math.round(Math.min(1,v)*100)}%"></b></i><em>${t}</em></div>`;
   $('stats').innerHTML=bar('Power',P.hp/1000,P.hp+' hp')+bar('Top speed',P.kmh/330,Math.round(P.kmh*.6214)+' mph')+bar('0–60 mph',(7-P.z100)/4.5,(P.z100*.94).toFixed(1)+' s')+bar('Drift',P.dr[0],P.dr[1]);
@@ -1686,6 +1696,7 @@ function update(dt){
     if(V!=='tv')tvSet=false}
   if(state==='menu'&&CAR.cockpit.visible){CAR.cockpit.visible=false;CAR.setClip(false);CAR.panes.forEach(m=>m.visible=true);CAR.cab.forEach(m=>m.visible=true)}
   camera.position.y+=camLift;camera.updateProjectionMatrix();
+  {const vb=state!=='menu'&&!(VIEWS[camMode][1]==='driver'||VIEWS[camMode][1]==='hood')?THREE.MathUtils.clamp((sp-22)/55,0,1)*.045:0;speedBlur.uniforms.amt.value+=(vb-speedBlur.uniforms.amt.value)*Math.min(1,dt*4);speedBlur.enabled=speedBlur.uniforms.amt.value>.002}
   sun.position.set(car.x+sunDir.x*300,gy0+sunDir.y*300,car.z+sunDir.z*300);sun.target.position.set(car.x,gy0,car.z);
   // engine audio
   let r2=state==='menu'?900+Math.sin(performance.now()*.002)*40:rpm;
@@ -1700,7 +1711,7 @@ function update(dt){
   else{$('dpts').textContent='';$('dmul').textContent=''}
 }
 let last=performance.now();
-function loop(now){film.uniforms.t.value=now*.001%100;const dt=Math.min(.033,(now-last)/1000);last=now;update(dt);if(MAP.pre){camera.updateMatrixWorld();MAP.pre()}composer.render();
+function loop(now){film.uniforms.t.value=now*.001%100;const dt=Math.min(.033,(now-last)/1000);last=now;update(dt);if(MAP.pre){camera.updateMatrixWorld();MAP.pre()}carReflections();composer.render();
   if(CAR&&CAR.cockpit.visible&&!CAR.glb&&(mirN++&1)){CAR.mirP.getWorldPosition(mirV);mirCam.position.copy(mirV);mirT.set(-Math.sin(car.yaw)*20,-.6,-Math.cos(car.yaw)*20).add(mirV);mirCam.lookAt(mirT);
     CAR.mirP.visible=false;renderer.shadowMap.autoUpdate=false;renderer.setRenderTarget(mirRT);renderer.render(scene,mirCam);renderer.setRenderTarget(null);renderer.shadowMap.autoUpdate=true;CAR.mirP.visible=true}
   requestAnimationFrame(loop)}
