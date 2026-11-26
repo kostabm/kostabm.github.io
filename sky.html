@@ -68,7 +68,7 @@ body.touch #crash button{font-size:20px}#rot{position:fixed;left:50%;top:58%;tra
 <div id="load">Building the valley…</div>
 <div id="menu">
   <h1>Sky Takeover</h1>
-  <p>You're just a passenger on Pinecrest Air flight 22 over Lake Tahoe… but you've always wanted to fly.<br>Get out of your seat, storm the cockpit, toss the pilot out the window and take the plane anywhere you like.</p>
+  <p>You're just a passenger on Pinecrest Air flight 22 over Lake Tahoe… but you've always wanted to fly.<br>Board at the airport, take your seat, then get up, storm the cockpit, toss the pilot out the window and take the plane anywhere you like.</p>
   <button id="go">✈️ Board the plane</button>
   <div id="rwstat" style="font-size:14px;color:#7cf5c4;min-height:18px"></div>
   <div id="keys" class="tkeys">📱 <b>Left stick</b> walk / steer the plane · <b>Drag the screen</b> look around · <b>✋</b> interact<br>Flying: <b>＋ －</b> throttle · <b>🎥</b> camera · <b>⚙️</b> landing gear · <b>✋</b> brakes on the ground<br>Best played with your phone sideways.</div>
@@ -95,6 +95,7 @@ body.touch #crash button{font-size:20px}#rot{position:fixed;left:50%;top:58%;tra
 <div id="help"><b>W</b><b>S</b>nose down / up<br><b>A</b><b>D</b>roll · <b>Q</b><b>E</b>rudder<br><b>Shift</b><b>Z</b>throttle up / down<br><b>G</b>landing gear · <b>B</b>brakes<br><b>C</b>switch camera · <b>I</b>invert up/down<br><b>H</b>hide this help</div>
 <div id="attrib" style="display:none;position:fixed;left:8px;bottom:4px;z-index:3;max-width:60vw;font:11px/1.3 system-ui,sans-serif;color:#fff;text-shadow:0 1px 2px #000;pointer-events:none"></div>
 <div id="rot">📱↻ Turn your phone sideways for the best view</div>
+<div id="fade" style="position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .8s;z-index:8"></div>
 <div id="crash"><h2>💥 CRASHED</h2><p id="cmsg"></p><button id="again">🛬 Back to the airport (R)</button></div>
 <div id="touch">
   <div id="tlook"></div>
@@ -717,6 +718,7 @@ function currentAction(){
   if(st==='gate')return Math.hypot(eye.x-GATE.foot.x,eye.z-GATE.foot.z)<3.2?{t:'Climb aboard',fn:boardAgain}:null;
   if(st==='seated')return {t:'Get out of your seat',fn:()=>{st='rising';anim={t:0,d:.8,from:eye.clone(),to:new THREE.Vector3(0,.72,PLAYER_SEAT.z),done:()=>{st='walk';objective('Walk to the front of the plane — the cockpit door.')}}}};
   if(st!=='walk')return null;const x=eye.x,z=eye.z,d=(a,b)=>Math.hypot(x-a,z-b);
+  if(boarding)return d(0,PLAYER_SEAT.z)<1?{t:'Sit in your seat (13C)',fn:()=>{st='sitting';boarding=false;anim={t:0,d:.9,from:eye.clone(),to:new THREE.Vector3(PLAYER_SEAT.x,.2,PLAYER_SEAT.z),done:takeOff};yawTo=0}}:null;
   if(!doorOpen&&z<-7.4&&Math.abs(x)<.7)return {t:'Kick open the cockpit door',fn:()=>{doorOpen=1;noiseHit(.35,900,80,.9);tone(70,0,.3,'sine',.5,40);shake=.4;objective('Grab the pilot!');setTimeout(()=>{if(pil==='seated')say('Hey! Passengers can\'t be in here!',2.6)},500)}};
   if(pil==='seated'&&z<-9.3&&d(-.6,-11.2)<1.6)return {t:'Grab the pilot',fn:()=>{pil='carried';say('WHAT ARE YOU DOING?!',2.2);noiseHit(.2,500,100,.4);objective('Carry him to the side window on the left.')}};
   if(pil==='carried'&&d(-1.1,-10.9)<1.05)return {t:'Throw him out the window!',fn:()=>{pil='windup';throwPilot()}};
@@ -765,22 +767,33 @@ function buildGate(name){const g=new THREE.Group();
   const pole=LM(0x9a9da2,.2);[-120,-40,40,120].forEach(x=>{const p=new THREE.Mesh(new THREE.CylinderGeometry(.18,.25,18,8),pole);p.position.set(x,9,100);g.add(p);const l=new THREE.Mesh(new THREE.BoxGeometry(3,.5,1),pole);l.position.set(x,18,99.5);g.add(l)});
   const cone=LM(0xff6a1a,.3);[[-12,30],[-14,34],[12,46],[16,46]].forEach(([x,z])=>{const c=new THREE.Mesh(new THREE.ConeGeometry(.22,.75,12),cone);c.position.set(x,.38,z);g.add(c)});
   scene.add(g);return g}
-function goToGate(){$('crash').style.display='none';const name=RW.on?'LAKE TAHOE AIRPORT':'PINECREST AIRPORT';
+function gateSpot(){if(RW.on){const [x,z]=ll2xz(38.8928,-119.9978),e=demElev(x,z);return new THREE.Vector3(x,(e===null?0:e)+1.2,z)}return new THREE.Vector3(RWY.x+230,RWY.h,RWY.z+700)}
+function parkPlane(){GATE.grp.position.copy(GATE.A);GATE.grp.visible=true;
+  P.visible=true;P.position.set(GATE.A.x,GATE.A.y+3.4,GATE.A.z+40);P.quaternion.setFromEuler(EUL.set(0,-Math.PI/2,0));F.mode='parked';F.speed=0;F.thr=0;F.gear=1;F.gearT=1;F.ctl.p=F.ctl.r=F.ctl.y=0;GEAR.visible=true;GEAR.scale.y=1;
+  P.updateMatrixWorld(true);GATE.foot.copy(P.localToWorld(new THREE.Vector3(-7.4,-3.4,-8.4)))}
+// a fresh flight: captain back in his seat, cockpit door shut
+function resetStory(){if(pilot.parent!==INNER)INNER.add(pilot);pilot.visible=true;{const u=pilot.userData;u.legL.rotation.z=u.legR.rotation.z=0;u.head.rotation.set(0,0,0)}pilotSeated();pil='seated';doorOpen=0;doorT=0;winOpen=false;winT=0;thr.t=0;thr.ct=0;thr.yell=0;bubT=0;boarding=false}
+let boarding=false;
+function goToGate(first){$('crash').style.display='none';const name=RW.on?'LAKE TAHOE AIRPORT':'PINECREST AIRPORT';
   if(!GATE.grp||GATE.name!==name){if(GATE.grp)scene.remove(GATE.grp);GATE.grp=buildGate(name);GATE.name=name}
-  if(RW.on){const [x,z]=ll2xz(38.8928,-119.9978),e=demElev(x,z);GATE.A.set(x,(e===null?0:e)+1.2,z)}else GATE.A.set(RWY.x+230,RWY.h,RWY.z+700);
-  GATE.grp.position.copy(GATE.A);GATE.grp.visible=true;
-  P.visible=true;P.position.set(GATE.A.x,GATE.A.y+3.4,GATE.A.z+40);P.quaternion.setFromEuler(EUL.set(0,-Math.PI/2,0));F.mode='parked';F.speed=0;F.thr=0;F.gear=1;F.gearT=1;F.ctl.p=F.ctl.r=F.ctl.y=0;GEAR.visible=true;GEAR.scale.y=1;STAIRS.visible=true;
-  P.updateMatrixWorld(true);GATE.foot.copy(P.localToWorld(new THREE.Vector3(-7.4,-3.4,-8.4)));
-  st='gate';GATE.reboard=true;document.body.classList.remove('flying');['fhud','mini','loc','help','warn'].forEach(id=>$(id).style.display='none');document.querySelectorAll('.fly-only').forEach(b=>b.style.display='none');
+  GATE.A.copy(gateSpot());parkPlane();STAIRS.visible=true;resetStory();
+  st='gate';GATE.reboard=false;document.body.classList.remove('flying');['fhud','mini','loc','help','warn'].forEach(id=>$(id).style.display='none');document.querySelectorAll('.fly-only').forEach(b=>b.style.display='none');
   eye.set(GATE.A.x+6,GATE.A.y+1.7,GATE.A.z-58);yaw=Math.PI-.35;pitch=-.05;view='cockpit';
-  if(pil==='seated'||pil==='carried'||pil==='windup'){pil='gone';pilot.visible=false}else pilot.visible=pil==='gone'&&pilot.position.distanceTo(GATE.A)<4000;
-  banner(name,'You walked away from the crash. Your next plane is waiting.',3.2);objective('You crashed — but you\'re okay! Walk out to the plane and climb the stairs.');if(!TOUCH)lockPtr()}
+  if(first){banner(name,'Pinecrest Air flight 22 is now boarding',3.2);objective('Your flight is boarding! Walk out to the plane and climb the stairs.')}
+  else{banner(name,'You walked away from the crash. Time to fly again!',3.2);objective('You crashed — but you\'re okay! Walk out to the plane and climb the stairs.')}if(!TOUCH)lockPtr()}
+// the real world can finish loading while you're at the airport: carry the whole airport (and you) over to the real one
+function relocateGate(){if(F.mode!=='parked'||!GATE.grp)return;const name='LAKE TAHOE AIRPORT';if(GATE.name!==name){scene.remove(GATE.grp);GATE.grp=buildGate(name);GATE.name=name}
+  const old=GATE.A.clone();GATE.A.copy(gateSpot());parkPlane();STAIRS.visible=st==='gate';if(st==='gate')eye.add(GATE.A.clone().sub(old))}
 function gateWalk(dt){let mx=0,mz=0;if(keys.KeyW||keys.ArrowUp)mz+=1;if(keys.KeyS||keys.ArrowDown)mz-=1;if(keys.KeyA)mx-=1;if(keys.KeyD)mx+=1;if(keys.ArrowLeft)yaw+=dt*1.8;if(keys.ArrowRight)yaw-=dt*1.8;
   if(TOUCH){mx+=stick.x;mz-=stick.y}const l=Math.hypot(mx,mz);if(l>1){mx/=l;mz/=l}const sp=(keys.ShiftLeft||keys.ShiftRight?6:3.2)*dt,fx=-Math.sin(yaw),fz=-Math.cos(yaw),rx=Math.cos(yaw),rz=-Math.sin(yaw);
   eye.x=clamp(eye.x+(fx*mz+rx*mx)*sp,GATE.A.x-155,GATE.A.x+155);eye.z=clamp(eye.z+(fz*mz+rz*mx)*sp,GATE.A.z-60,GATE.A.z+125);
   eye.y=GATE.A.y+1.7+(l>.1?Math.sin(performance.now()/150)*.03:0)}
-function boardAgain(){st='walk';STAIRS.visible=false;setInside(true);eye.set(-.2,.72,-8.3);yaw=0;pitch=0;doorOpen=1;doorT=1;winOpen=false;
-  objective('Take the captain\'s seat and get this plane back in the air!');banner('Welcome aboard','Head to the cockpit',2);ding()}
+function boardAgain(){st='walk';boarding=true;setInside(true);eye.set(-.2,.72,-8.3);yaw=Math.PI;pitch=-.05;
+  objective('Find your seat — row 13, aisle seat on the left as you walk back — and sit down.');banner('Welcome aboard','Please take your seat',2.2);ding();say('Welcome aboard, folks!',2.2)}
+const fade=(cb)=>{const f=$('fade');f.style.opacity=1;setTimeout(()=>{cb();setTimeout(()=>f.style.opacity=0,350)},900)};
+function takeOff(){st='takeoff';tone(90,0,2.5,'sawtooth',.06,160);
+  fade(()=>{STAIRS.visible=false;F.mode='auto';AP.a=Math.PI*.5;autopilot(0);st='seated';yaw=-.95;pitch=-.12;ding();
+    banner('Pinecrest Air · Flight 22',RW.on?'Cruising over Lake Tahoe':'Cruising over Silverpine Lake',3);objective('You\'re a passenger… but you want to fly this plane. Get out of your seat!')})}
 function respawn(){goToGate()}
 
 // ================= flight =================
@@ -871,7 +884,7 @@ fetch('maps/tahoe_dem.png').then(r=>r.ok?r.blob():Promise.reject(r.status)).then
     im.data[k]=clamp(r*(1+sh),0,255);im.data[k+1]=clamp(gg*(1+sh),0,255);im.data[k+2]=clamp(b*(1+sh),0,255);im.data[k+3]=255}
   mg.putImageData(im,0,0);RW.map=mc;
   RW.places=[['South Lake Tahoe',38.935,-119.984],['Emerald Bay',38.954,-120.105],['Tahoe City',39.168,-120.142],['Incline Village',39.251,-119.953],['Lake Tahoe Airport',38.894,-119.995],['Heavenly',38.935,-119.906],['Kings Beach',39.238,-120.026],['Zephyr Cove',39.006,-119.948],['Mt. Tallac',38.906,-120.099],['Sand Harbor',39.198,-119.931]].map(([n,la,lo])=>{const [x,z]=ll2xz(la,lo),[hh]=H2(x,z);return [n,x,z,hh]})}).catch(e=>console.warn('elevation data unavailable',e));
-function setReal(on){RW.on=on;PROC.forEach(o=>o.visible=!on);if(SKYDOME)CLOUD_M.forEach(m=>m.visible=!on);if(on&&!RW.labelled){RW.labelled=true;AP.z=0;RW.places.forEach(([n,x,z,hh])=>label(n,x,hh+260-(x*x+z*z)/12742000,z))}$('attrib').style.display=on?'block':'none'}
+function setReal(on){RW.on=on;if(on)setTimeout(relocateGate,0);PROC.forEach(o=>o.visible=!on);if(SKYDOME)CLOUD_M.forEach(m=>m.visible=!on);if(on&&!RW.labelled){RW.labelled=true;AP.z=0;RW.places.forEach(([n,x,z,hh])=>label(n,x,hh+260-(x*x+z*z)/12742000,z))}$('attrib').style.display=on?'block':'none'}
 RW.labels=[];
 if(!/procedural/.test(location.search)){$('rwstat').textContent='🌍 Loading the real world (Lake Tahoe, photo-scanned in 3D)…';
   import('https://cdn.jsdelivr.net/npm/3d-tiles-renderer@0.3.46/src/index.js').then(T=>{
@@ -967,7 +980,7 @@ function bubbleTick(dt){const b=$('bubble');if(bubT<=0){b.style.display='none';r
 
 let last=performance.now(),pfdN=0;
 function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last)/1000);last=now;const t=now/1000;
-  if(st==='fly'){flyInput(dt);if(F.mode==='air')flyAir(dt);else if(F.mode==='ground'||F.mode==='water')flyGround(dt)}else if(F.mode!=='parked'||st==='seated'||st==='menu')autopilot(dt);
+  if(st==='fly'){flyInput(dt);if(F.mode==='air')flyAir(dt);else if(F.mode==='ground'||F.mode==='water')flyGround(dt)}else if(F.mode!=='parked')autopilot(dt);
   BEACON.visible=(t%1.2)<.12;{const ph=t%1.3;STROBES.forEach(s=>s.visible=ph<.06||(ph>.16&&ph<.21))}
   {const fl=st==='fly'&&F.mode!=='crashed',c=F.ctl;SURF.ail.forEach(([sx,pv])=>pv.rotation.x=fl?-sx*c.r*.35:0);SURF.elev.forEach(pv=>pv.rotation.x=fl?-c.p*.4:0);SURF.rud.rotation.y=fl?c.y*.4:0;SURF.flap.forEach(pv=>pv.rotation.x=F.gearT*.42)}
   if(st==='rising'||st==='sitting'){anim.t+=dt;const k=sstep(0,1,anim.t/anim.d);eye.lerpVectors(anim.from,anim.to,k);if(yawTo!==null){yaw+=(yawTo-yaw)*Math.min(1,dt*4);pitch*=1-Math.min(1,dt*4)}if(anim.t>=anim.d){const d=anim.done;anim=null;yawTo=null;d()}}
@@ -991,8 +1004,7 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last
 
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight)});
 $('again').onclick=respawn;
-$('go').onclick=()=>{initAudio();$('menu').style.display='none';if(TOUCH){$('touch').style.display='block';try{document.documentElement.requestFullscreen?.().catch(()=>{})}catch(e){}}$('obj').style.display='block';st='seated';setInside(true);objective('You\'re a passenger… but you want to fly this plane. Get out of your seat!');
-  setTimeout(ding,600);setTimeout(()=>banner('Pinecrest Air · Flight 22',RW.on?'Cruising over Lake Tahoe':'Cruising over Silverpine Lake',3),1500);if(!TOUCH)lockPtr()};
+$('go').onclick=()=>{initAudio();$('menu').style.display='none';if(TOUCH){$('touch').style.display='block';try{document.documentElement.requestFullscreen?.().catch(()=>{})}catch(e){}}$('obj').style.display='block';goToGate(true);setTimeout(ding,600)};
 window.__g=()=>({st,pil,eye:eye.toArray(),mode:F.mode,y:P.position.y,prompt:(currentAction()||{}).t});window.__t={eye,act:()=>act(),look:(y,p)=>{yaw=y;pitch=p},P,F,fly:()=>startFlying(),view:v=>{view=v},orb,scene,water,groundH,crash:m=>crash(m),gate:()=>goToGate(),G:GATE};
 buildMap();setInside(true);autopilot(0);
 $('load').style.display='none';
