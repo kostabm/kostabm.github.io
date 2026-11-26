@@ -168,17 +168,30 @@ THREE.ShaderChunk.fog_fragment=`#ifdef USE_FOG
 #endif
 #endif`;
 let SKYDOME=null;const pm=new THREE.PMREMGenerator(renderer);
-if(HDRI){const mat=new THREE.MeshBasicMaterial({map:HDRI,side:THREE.BackSide,depthWrite:false,fog:false});mat.color.setScalar(SKYINFO.k);
-  SKYDOME=new THREE.Mesh(new THREE.SphereGeometry(1,96,48),mat);SKYDOME.scale.setScalar(120000);SKYDOME.frustumCulled=false;scene.add(SKYDOME);
-  const es=new THREE.Scene();es.add(new THREE.Mesh(new THREE.SphereGeometry(100,64,32),mat));scene.environment=pm.fromScene(es,0,1,1000).texture;scene.background=new THREE.Color(0,0,0)}
-else{const s=new Sky();s.scale.setScalar(10000);const u=s.material.uniforms;u.turbidity.value=3.2;u.rayleigh.value=1.25;u.mieCoefficient.value=.005;u.mieDirectionalG.value=.86;u.sunPosition.value.copy(SUN);
+// render a tiny test picture and return its average brightness (0 = black or broken)
+function probe(build){try{const rt=new THREE.WebGLRenderTarget(16,16),sc=new THREE.Scene(),cam=new THREE.PerspectiveCamera(60,1,.05,2000);cam.position.set(0,0,3);build(sc,cam);
+  renderer.setRenderTarget(rt);renderer.render(sc,cam);renderer.setRenderTarget(null);const b=new Uint8Array(16*16*4);renderer.readRenderTargetPixels(rt,0,0,16,16,b);rt.dispose();let t=0;for(let i=0;i<b.length;i+=4)t+=b[i]+b[i+1]+b[i+2];return t/256}catch(e){console.warn('probe failed',e);return 0}}
+const envProbe=()=>probe(sc=>{sc.environment=scene.environment;sc.add(new THREE.Mesh(new THREE.SphereGeometry(1.2,32,16),new THREE.MeshStandardMaterial({roughness:.6})))});
+if(SKYINFO&&!(isFinite(SKYINFO.k)&&SKYINFO.k>0))SKYINFO.k=1;
+let skyOK=false;
+if(HDRI){const mat=new THREE.MeshBasicMaterial({map:HDRI,side:THREE.BackSide,depthWrite:false,fog:false});mat.color.setScalar(clamp(SKYINFO.k,.02,50));
+  SKYDOME=new THREE.Mesh(new THREE.SphereGeometry(1,96,48),mat);SKYDOME.scale.setScalar(120000);SKYDOME.frustumCulled=false;
+  const es=new THREE.Scene();es.add(new THREE.Mesh(new THREE.SphereGeometry(100,64,32),mat));scene.environment=pm.fromScene(es,0,1,1000).texture;
+  const dome=probe((sc,cam)=>{sc.add(new THREE.Mesh(new THREE.SphereGeometry(1,32,16),mat));cam.position.set(0,0,0);cam.lookAt(1,.35,0)}),env=envProbe();
+  console.log('sky check',dome|0,env|0);if(dome>6&&env>4){skyOK=true;scene.add(SKYDOME);scene.background=new THREE.Color(0,0,0)}
+  else{console.warn('Sky photo does not render on this device — using the painted sky',dome,env);SKYDOME=null;SKYINFO=null;scene.environment=null}}
+if(!skyOK){const s=new Sky();s.scale.setScalar(10000);const u=s.material.uniforms;u.turbidity.value=3.2;u.rayleigh.value=1.25;u.mieCoefficient.value=.005;u.mieDirectionalG.value=.86;u.sunPosition.value.copy(SUN);
   const sc=new THREE.Scene();sc.add(s);const rt=new THREE.WebGLCubeRenderTarget(LOW?256:1024,{type:THREE.HalfFloatType});new THREE.CubeCamera(1,20000,rt).update(renderer,sc);
-  scene.background=rt.texture;scene.environment=pm.fromScene(sc,0,1,20000).texture}
+  scene.background=rt.texture;scene.environment=pm.fromScene(sc,0,1,20000).texture;
+  if(envProbe()<=4){console.warn('Sky lighting does not render on this device — using plain light');scene.environment=null;scene.background=new THREE.Color(0x8fb3d9)}}
 // haze takes the colour of the horizon, the way real air does
-scene.fog=new THREE.FogExp2(0xffffff,3.4e-5);if(SKYINFO)scene.fog.color.copy(SKYINFO.hor).multiplyScalar(SKYINFO.k*.62);else scene.fog.color.setRGB(1.148*.6,1.423*.62,1.558*.66);
+scene.fog=new THREE.FogExp2(0xffffff,3.4e-5);if(SKYINFO)scene.fog.color.copy(SKYINFO.hor).multiplyScalar(SKYINFO.k*.62);if(![scene.fog.color.r,scene.fog.color.g,scene.fog.color.b].every(isFinite))scene.fog.color.setRGB(.7,.85,.95);else scene.fog.color.setRGB(1.148*.6,1.423*.62,1.558*.66);
 const sunL=new THREE.DirectionalLight(0xfff0dc,3);sunL.castShadow=true;{const c=sunL.shadow.camera;c.left=c.bottom=-24;c.right=c.top=24;c.near=1;c.far=4000;sunL.shadow.mapSize.set(LOW?1024:2048,LOW?1024:2048);sunL.shadow.bias=-.0004;sunL.shadow.normalBias=.03}
 scene.add(sunL,sunL.target);
-scene.add(new THREE.HemisphereLight(0xcfe0ff,0x4d5638,.45));
+{renderer.shadowMap.needsUpdate=true;const lit=probe(sc=>{sc.fog=scene.fog;sc.environment=scene.environment;const l=new THREE.DirectionalLight(0xffffff,3);l.position.set(2,3,4);l.castShadow=true;sc.add(l);
+  const m=new THREE.Mesh(new THREE.SphereGeometry(1.2,32,16),new THREE.MeshStandardMaterial({roughness:.6}));m.castShadow=m.receiveShadow=true;sc.add(m)});
+  if(lit<=4){console.warn('Shadows break the lighting on this device — turning them off',lit);renderer.shadowMap.enabled=false}else console.log('lighting check ok',lit|0)}
+scene.add(new THREE.HemisphereLight(0xcfe0ff,0x4d5638,scene.environment?.45:1.1));
 // film look: MSAA, gentle bloom on hot highlights, ACES, a touch of grading and vignette
 const composer=new EffectComposer(renderer,new THREE.WebGLRenderTarget(innerWidth,innerHeight,{type:THREE.HalfFloatType,samples:LOW?0:4}));composer.setSize(innerWidth,innerHeight);
 composer.addPass(new RenderPass(scene,camera));
