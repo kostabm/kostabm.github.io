@@ -139,7 +139,7 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:v}ca
 const renderer=new THREE.WebGLRenderer({antialias:false,logarithmicDepthBuffer:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,LOW?1:1.5));renderer.setSize(innerWidth,innerHeight);
 renderer.toneMapping=THREE.AgXToneMapping;renderer.toneMappingExposure=.95;
-renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.shadowMap.autoUpdate=false;
+renderer.shadowMap.enabled=true;renderer.localClippingEnabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.shadowMap.autoUpdate=false;
 document.body.prepend(renderer.domElement);
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.05,170000);camera.layers.enable(1);
@@ -839,7 +839,7 @@ function buildGate(name){const g=new THREE.Group();
   const cone=LM(0xff6a1a,.3);[[-12,30],[-14,34],[12,46],[16,46]].forEach(([x,z])=>{const c=new THREE.Mesh(new THREE.ConeGeometry(.22,.75,12),cone);c.position.set(x,.38,z);g.add(c)});
   buildPeople(g);scene.add(g);return g}
 function gateSpot(){if(RW.on){const [x,z]=ll2xz(38.8928,-119.9978),e=demElev(x,z);return new THREE.Vector3(x,(e===null?0:e)+1.2,z)}return new THREE.Vector3(RWY.x+230,RWY.h,RWY.z+700)}
-function parkPlane(){GATE.grp.position.copy(GATE.A);GATE.grp.visible=true;
+function parkPlane(){const A=GATE.A;GCLIP[0].constant=A.x-163;GCLIP[1].constant=-(A.x+163);GCLIP[2].constant=A.z-93;GCLIP[3].constant=-(A.z+133);GATE.grp.position.copy(GATE.A);GATE.grp.visible=true;
   P.visible=true;P.position.set(GATE.A.x,GATE.A.y+3.4,GATE.A.z+40);P.quaternion.setFromEuler(EUL.set(0,-Math.PI/2,0));F.mode='parked';F.speed=0;F.thr=0;F.gear=1;F.gearT=1;F.ctl.p=F.ctl.r=F.ctl.y=0;GEAR.visible=true;GEAR.scale.y=1;
   P.updateMatrixWorld(true);GATE.foot.copy(P.localToWorld(new THREE.Vector3(-7.4,-3.4,-8.4)))}
 // a fresh flight: captain back in his seat, cockpit door shut
@@ -962,6 +962,8 @@ function fxTick(dt){for(let i=FX.length-1;i>=0;i--){const f=FX[i];f.t+=dt;const 
 
 // ================= the real world: Google's photo-scanned 3D Earth (via Cesium ion, same as the drift game) =================
 const CESIUM={token:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IkU2amNWSmw1SlFHT3ktZUMiLCJqdGkiOiJmNzBhYjM0Yi1lYTIyLTRkM2YtYmFhOS05ZGZkYzEwN2M2N2EiLCJpZCI6NTU1MDcyLCJzdWIiOiJub3RoaW5nZ2cyMTM5NyIsImlzcyI6Imh0dHBzOi8vYXBpLmNlc2l1bS5jb20iLCJhdWQiOiJkcmlmdC1nYW1lIiwiaWF0IjoxNzk1NDg1NzIwfQ.UH5KE7NsX-i8o8WEA6ub7sIFgJyTIiGGmeT9WJrRjgQ',asset:2275207,lat:39.09,lon:-120.03};// centre of Lake Tahoe
+// the scanned world is cut away over the airport (terminal + apron) so real trees and buildings don't poke through it
+const GCLIP=[new THREE.Plane(new THREE.Vector3(-1,0,0),1e9),new THREE.Plane(new THREE.Vector3(1,0,0),1e9),new THREE.Plane(new THREE.Vector3(0,0,-1),1e9),new THREE.Plane(new THREE.Vector3(0,0,1),1e9)];
 const RW={on:false,tiles:null,holder:null,cache:new Map(),t:0,stable:0,map:null,mask:null,places:[],attT:0};
 const MLAT=111034,MLON=111412.84*Math.cos(CESIUM.lat*Math.PI/180)-93.5*Math.cos(3*CESIUM.lat*Math.PI/180);
 const xz2ll=(x,z)=>[CESIUM.lat-z/MLAT,CESIUM.lon+x/MLON],ll2xz=(la,lo)=>[(lo-CESIUM.lon)*MLON,-(la-CESIUM.lat)*MLAT];
@@ -996,7 +998,7 @@ if(!/procedural/.test(location.search)){$('rwstat').textContent='🌍 Loading th
     const tiles=new T.TilesRenderer();tiles.registerPlugin(new T.CesiumIonAuthPlugin({apiToken:CESIUM.token,assetId:CESIUM.asset,autoRefreshToken:true}));
     tiles.errorTarget=LOW?18:10;const GB=1024**3;Object.assign(tiles.lruCache,LOW?{minBytesSize:.25*GB,maxBytesSize:.35*GB}:{minBytesSize:.7*GB,maxBytesSize:.9*GB,minSize:9000,maxSize:12000});
     tiles.setLatLonToYUp(CESIUM.lat*Math.PI/180,CESIUM.lon*Math.PI/180);
-    RW.models=0;RW.t0=performance.now();tiles.addEventListener('load-model',({scene:sc})=>{RW.models++;sc.traverse(o=>{if(o.isMesh&&o.material){o.material.toneMapped=false;o.material.fog=true}})});
+    RW.models=0;RW.t0=performance.now();tiles.addEventListener('load-model',({scene:sc})=>{RW.models++;sc.traverse(o=>{if(o.isMesh&&o.material){o.material.toneMapped=false;o.material.fog=true;o.material.clippingPlanes=GCLIP;o.material.clipIntersection=true}})});
     tiles.setCamera(camera);holder.add(tiles.group);RW.tiles=tiles;
     const status=t=>{$('rwstat').textContent=t;const pl=$('rwpill');pl.textContent=t;pl.style.display=(!RW.on&&st!=='menu')?'block':'none'};
     status('🌍 Connecting to Google\'s 3D world…');
