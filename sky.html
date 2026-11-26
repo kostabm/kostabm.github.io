@@ -74,6 +74,7 @@ body.touch #crash button{font-size:20px}#rot{position:fixed;left:50%;top:58%;tra
   <div id="keys" class="tkeys">📱 <b>Left stick</b> walk / steer the plane · <b>Drag the screen</b> look around · <b>✋</b> interact<br>Flying: <b>＋ －</b> throttle · <b>🎥</b> camera · <b>⚙️</b> landing gear · <b>✋</b> brakes on the ground<br>Best played with your phone sideways.</div>
   <div id="keys2" class="kkeys"><b>Mouse</b> look · <b>W A S D</b> walk · <b>E</b> interact<br>Flying: <b>W</b>/<b>S</b> nose down/up · <b>A</b>/<b>D</b> roll · <b>Q</b>/<b>E</b> rudder · <b>Shift</b>/<b>Z</b> throttle · <b>G</b> gear · <b>B</b> brakes · <b>C</b> camera</div>
   <a href="./">← Kosta's Games</a>
+  <div style="font-size:11px;color:#8a90b0;max-width:560px">People: avatars and animations from <a href="https://github.com/mml-io/3d-web-experience" target="_blank" rel="noopener" style="font-size:11px">MML 3D Web Experience</a> © Improbable MV Limited, MIT licence (simplified for the web). Sky: Poly Haven (CC0). Real world: Google 3D tiles via Cesium ion.</div>
 </div>
 <div id="rwpill" style="position:fixed;top:14px;left:50%;transform:translateX(-50%);display:none;background:rgba(0,0,0,.5);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:700;z-index:3;pointer-events:none;white-space:nowrap"></div>
 <div id="diag" style="position:fixed;left:6px;right:6px;top:40%;z-index:30;display:none;background:rgba(0,0,0,.8);color:#9f9;font:11px/1.35 monospace;padding:8px;border-radius:8px;white-space:pre-wrap;pointer-events:none;max-height:45vh;overflow:hidden"></div>
@@ -123,6 +124,9 @@ import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
 import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
 import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 import {ShaderPass} from 'three/addons/postprocessing/ShaderPass.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {DRACOLoader} from 'three/addons/loaders/DRACOLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 const $=id=>document.getElementById(id);
 const DIAG=[],DEBUG=/debug/.test(location.search);function diag(m){DIAG.push(m);console.log('[diag]',m);if(DEBUG){const d=$('diag');d.style.display='block';d.textContent=DIAG.slice(-22).join('\n')}}
@@ -236,7 +240,7 @@ function rawH(x,z){
   let h=lerp(-35-90*sstep(.95,.3,d),land,t);
   for(const [ix,iz,R,H] of ISLES){const q=Math.hypot(x-ix,z-iz)/R;if(q<1.2){const ih=-60+(H+60)*sstep(1,.15,q)+(fbm(x/300,z/300,3)-.5)*H*.5*sstep(1,.3,q);if(ih>h)h=ih}}
   const tw=sstep(TOWN.r+1100,TOWN.r,Math.hypot(x-TOWN.x,z-TOWN.z));if(h>6)h=lerp(h,6,tw);
-  const rq=Math.hypot(Math.max(Math.abs(x-RWY.x)-130,0),Math.max(Math.abs(z-RWY.z)-RWY.len/2-250,0));h=lerp(h,RWY.h,sstep(900,0,rq));
+  const rdx=x-RWY.x,rq=Math.hypot(rdx>0?Math.max(rdx-620,0):Math.max(-rdx-130,0),Math.max(Math.abs(z-RWY.z)-RWY.len/2-250,0));h=lerp(h,RWY.h,sstep(900,0,rq));
   return h}
 const NOISE=(()=>{const S=256,c=document.createElement('canvas');c.width=c.height=S;const g=c.getContext('2d'),im=g.createImageData(S,S);
   const pn=(x,y,P,sd)=>{const i=Math.floor(x),j=Math.floor(y),u=x-i,v=y-j,su=u*u*(3-2*u),sv=v*v*(3-2*v),H=(a,b)=>hash(((a%P)+P)%P+sd*131,((b%P)+P)%P-sd*977),a=H(i,j),b=H(i+1,j),cc=H(i,j+1),d=H(i+1,j+1);return a+(b-a)*su+(cc-a)*sv+(a-b-cc+d)*su*sv};
@@ -480,6 +484,42 @@ const EXT=new THREE.Group(),INNER=new THREE.Group(),GEAR=new THREE.Group();P.add
 const RE=1.95,RI=1.85;
 const LM=(c,e=.38,o={})=>{const col=new THREE.Color(c);return new THREE.MeshStandardMaterial(Object.assign({color:col,emissive:col.clone().multiplyScalar(e*.42),roughness:.8,metalness:0,envMapIntensity:.2,shadowSide:THREE.DoubleSide},o))};
 const WIN_Z=[];for(let k=0;k<25;k++)WIN_Z.push(11-(k+.5)*.8);
+
+// ---------- realistic people: scanned-style 3D avatars (MML avatars by Improbable, MIT licence) with real idle and walking motion ----------
+const HUM=await (async()=>{if(/mannequins/.test(location.search))return null;$('load').textContent='Loading people…';
+  try{const ld=new GLTFLoader(),dr=new DRACOLoader();dr.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/');ld.setDRACOLoader(dr);
+    const all=await Promise.race([Promise.all(['person1','person2','person3','person4','anim_idle','anim_jog'].map(n=>ld.loadAsync('models/people/'+n+'.glb'))),new Promise((_,j)=>setTimeout(()=>j(new Error('timeout')),25000))]);
+    const strip=c=>{c.tracks=c.tracks.filter(t=>!/^(root|pelvis)\.position$/.test(t.name));return c};
+    const V=all.slice(0,4).map(g=>{const sc=g.scene;sc.traverse(o=>{if(o.isMesh){o.frustumCulled=false;if(o.material){o.material.envMapIntensity=.6}}});sc.updateMatrixWorld(true);
+      const hip=sc.getObjectByName('pelvis'),hp=new THREE.Vector3();hip.getWorldPosition(hp);return {scene:sc,hipY:hp.y}});
+    diag('people loaded: '+V.length+' avatars');return {V,idle:strip(all[4].animations[0]),jog:strip(all[5].animations[0])}}
+  catch(e){diag('people failed to load, using mannequins: '+(e.message||e));return null}finally{$('load').textContent='Building the valley…'}})();
+const Y180=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),Math.PI);
+// a real avatar wrapped so it faces -Z with its hips at the origin; limb "proxies" (armL/armR/legL/legR + knee, head) are posed like the old mannequins
+function makeReal(vi,scl=1){const v=HUM.V[vi%HUM.V.length],m=SkeletonUtils.clone(v.scene);m.rotation.y=Math.PI;m.position.y=-v.hipY*scl;m.scale.setScalar(scl);
+  const g=new THREE.Group();g.add(m);m.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+  const B=n=>m.getObjectByName(n),bones={};['pelvis','thigh_l','calf_l','thigh_r','calf_r','upperarm_l','lowerarm_l','upperarm_r','lowerarm_r','neck_01','head'].forEach(n=>bones[n]=B(n));
+  m.updateMatrixWorld(true);const gi=new THREE.Quaternion(),rest={},rw={};// rest rotations in the wrapper's frame
+  for(const n in bones){const b=bones[n];rest[n]=b.quaternion.clone();const q=new THREE.Quaternion();b.getWorldQuaternion(q);rw[n]=q}
+  const prw=n=>{const p=new THREE.Quaternion();bones[n].parent.getWorldQuaternion(p);return p};const parentRest={};for(const n in bones)parentRest[n]=prw(n);
+  // arms hang straight down from the A-pose
+  const down=sd=>{const a=new THREE.Vector3(),b2=new THREE.Vector3();bones['upperarm_'+sd].getWorldPosition(a);bones['lowerarm_'+sd].getWorldPosition(b2);return new THREE.Quaternion().setFromUnitVectors(b2.sub(a).normalize(),new THREE.Vector3(0,-1,0))};
+  const AD={l:down('l'),r:down('r')};
+  const P=()=>{const o=new THREE.Object3D();o.userData.knee=new THREE.Object3D();return o};const u={armL:P(),armR:P(),legL:P(),legR:P(),head:new THREE.Object3D()};
+  const qa=new THREE.Quaternion(),qb=new THREE.Quaternion(),qc=new THREE.Quaternion(),E=new THREE.Euler();
+  const setW=(n,target,parentW)=>{bones[n].quaternion.copy(qc.copy(parentW).invert().multiply(target))};
+  u.apply=()=>{// all rotations are in the wrapper's frame (rw = rest pose there); mannequin L side = avatar _l bones
+    const Q=r=>new THREE.Quaternion().setFromEuler(E.set(r.x,r.y,r.z));
+    for(const [sd,L,A] of [['l',u.legL,u.armL],['r',u.legR,u.armR]]){
+      const D1=Q(L.rotation),t1=D1.clone().multiply(rw['thigh_'+sd]);setW('thigh_'+sd,t1,parentRest['thigh_'+sd]);
+      const D2=D1.clone().multiply(Q(L.userData.knee.rotation)),t2=D2.multiply(rw['calf_'+sd]);setW('calf_'+sd,t2,t1);
+      const Da=Q(A.rotation).multiply(AD[sd]),t3=Da.clone().multiply(rw['upperarm_'+sd]);setW('upperarm_'+sd,t3,parentRest['upperarm_'+sd]);
+      const Db=Da.clone().multiply(Q(A.userData.knee.rotation)),t4=Db.multiply(rw['lowerarm_'+sd]);setW('lowerarm_'+sd,t4,t3)}
+    const hd=Q(u.head.rotation).multiply(rw.head);setW('head',hd,parentRest.head)};
+  g.userData=u;u.model=m;return g}
+function realMixer(g){const mx=new THREE.AnimationMixer(g.userData.model),idle=mx.clipAction(HUM.idle),walk=mx.clipAction(HUM.jog);idle.play();walk.play();walk.setEffectiveWeight(0);idle.time=Math.random()*3;walk.time=Math.random();return {mx,idle,walk}}
+const REALPOSE=[];// posed avatars (pilot) re-applied every frame
+
 // ---------- people: proper proportions, faces, hair and clothes built from smooth shapes ----------
 function colGeo(g,col){g=g.index?g.toNonIndexed():g;const c=new THREE.Color(col),n=g.attributes.position.count,a=new Float32Array(n*3);for(let i=0;i<n;i++)c.toArray(a,i*3);g.setAttribute('color',new THREE.BufferAttribute(a,3));if(!g.attributes.uv)g.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(n*2),2));return g}
 function limbG(a,b,r,col,out,r2){const A=new THREE.Vector3(...a),B=new THREE.Vector3(...b),d=B.clone().sub(A),len=Math.max(.001,d.length());let g;
@@ -537,7 +577,13 @@ function seatedPerson(o,x,y,z,r,out){const P=[];torsoParts(o,P);const H=[];headP
   P.forEach(g=>{g.translate(x,y,z);out.push(g)})}
 // the captain: same body but jointed so he can be grabbed, carried and thrown
 const PILOT_O={female:false,hairStyle:0,skin:0xeac3a2,hair:0x7a7a74,eyes:0x3d5a72,lips:0xb88a78,shirt:0xf7f7f4,sleeves:0,pants:0x1b2a4a,shoes:0x0d0d0d,build:1.05,glasses:false,beard:false,collar:true,tie:true,epaulets:true,hat:true};
-function makePilot(){return makeJointed(PILOT_O)}
+function makePilot(){if(!HUM)return makeJointed(PILOT_O);const g=makeReal(0);REALPOSE.push(g);
+  const hb=g.userData.model.getObjectByName('head');g.updateMatrixWorld(true);const hp=new THREE.Vector3();hb.getWorldPosition(hp);
+  const C=[];headParts(Object.assign({},PILOT_O,{hairStyle:2,beard:false,glasses:false}),[]);// (just for colours)
+  const cap=new THREE.Group(),nv=LM(0x1b2a4a,.25,{roughness:.6}),gold=LM(0xe0b84a,.3,{metalness:.6,roughness:.3});
+  const c1=new THREE.Mesh(new THREE.CylinderGeometry(.118,.108,.07,24),nv);c1.position.y=.035;const c2=new THREE.Mesh(new THREE.CylinderGeometry(.13,.118,.035,24),nv);c2.position.y=.085;const bd=new THREE.Mesh(new THREE.CylinderGeometry(.112,.112,.02,24),gold);bd.position.y=.012;
+  const br=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,.012,24,1,false,Math.PI*.55,Math.PI*.9),LM(0x111111,.2));br.rotation.x=-.25;br.position.set(0,0,-.04);cap.add(c1,c2,bd,br);
+  cap.position.set(hp.x,hp.y+.07,hp.z-.01);g.add(cap);hb.attach(cap);return g}
 function makeJointed(o){
   const g=new THREE.Group(),mk=parts=>{const m=new THREE.Mesh(mergeGeometries(parts),humanMat);m.castShadow=m.receiveShadow=true;return m};
   const T=[];torsoParts(o,T);g.add(mk(T));const head=new THREE.Group();head.position.y=.6;const H=[];headParts(o,H);H.forEach(q=>q.translate(0,-.6,0));head.add(mk(H));g.add(head);
@@ -630,8 +676,11 @@ const BEACON=new THREE.Mesh(new THREE.SphereGeometry(.15,8,6),new THREE.MeshBasi
   const arms=[];ROWS.forEach(z=>[-1.42,-.9,-.4,.4,.9,1.42].forEach(x=>arms.push([x,z])));const arm=new THREE.InstancedMesh(new RoundedBoxGeometry(.06,.07,.44,2,.025),LM(0x5c5f66,.3,{roughness:.5}),arms.length);arms.forEach(([x,z],i)=>arm.setMatrixAt(i,m.makeTranslation(x,-.2,z+.02)));INNER.add(arm);
   seatPos.forEach(([x,z],i)=>{base.setMatrixAt(i,m.makeTranslation(x,-.45,z));back.setMatrixAt(i,m.makeTranslation(x,-.07,z+.22));head.setMatrixAt(i,m.makeTranslation(x,.2,z+.22))});INNER.add(base,back,head);
   // passengers (all merged into one mesh)
-  {const pas=seatPos.filter(([x,z,r])=>!(r===12&&x===.65)&&rnd()<.66),G=[];pas.forEach(([x,z])=>seatedPerson(randPerson(rnd),x,-.3,z+.08,rnd,G));
-    const pm=new THREE.Mesh(mergeGeometries(G),humanMat);pm.castShadow=pm.receiveShadow=true;INNER.add(pm)}
+  {const pas=seatPos.filter(([x,z,r])=>!(r===12&&x===.65)&&rnd()<(LOW&&HUM?.45:.66));
+    if(HUM)pas.forEach(([x,z],i)=>{const m=makeReal(i,.93),u=m.userData;u.legL.rotation.x=u.legR.rotation.x=Math.PI/2-.05;u.legL.userData.knee.rotation.x=u.legR.userData.knee.rotation.x=-Math.PI/2+.12;
+      u.legL.rotation.z=-.06;u.legR.rotation.z=.06;u.armL.rotation.x=u.armR.rotation.x=.25+rnd()*.15;u.armL.userData.knee.rotation.x=u.armR.userData.knee.rotation.x=.9+rnd()*.3;u.armL.rotation.z=-.1;u.armR.rotation.z=.1;
+      u.head.rotation.y=(rnd()-.5)*.8;u.head.rotation.x=-(rnd()*.25);u.apply();m.position.set(x,-.38,z+.04);m.traverse(o=>{if(o.isMesh)o.castShadow=false});INNER.add(m)});
+    else{const G=[];pas.forEach(([x,z])=>seatedPerson(randPerson(rnd),x,-.3,z+.08,rnd,G));const pm=new THREE.Mesh(mergeGeometries(G),humanMat);pm.castShadow=pm.receiveShadow=true;INNER.add(pm)}}
   const ife=canvasTex(128,80,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#0b2a4a');gr.addColorStop(1,'#123d2a');g.fillStyle=gr;g.fillRect(0,0,w,h);g.strokeStyle='#ffd36b';g.lineWidth=2;g.beginPath();g.moveTo(20,60);g.quadraticCurveTo(60,20,108,24);g.stroke();g.fillStyle='#fff';g.font='10px sans-serif';g.fillText('PNC  →  PNC',8,74)});
   const scrI=new THREE.InstancedMesh(new THREE.PlaneGeometry(.2,.13),new THREE.MeshBasicMaterial({map:ife,toneMapped:false,color:0x8a8a8a}),seatPos.length);seatPos.forEach(([x,z],i)=>scrI.setMatrixAt(i,m.makeTranslation(x,.08,z+.295)));INNER.add(scrI);
   const shades=[];WIN_Z.forEach(z=>[-1,1].forEach(sd=>{if(rnd()<.45)shades.push([sd,z,.15+rnd()*.85])}));
@@ -891,23 +940,28 @@ const NAV=(()=>{const N=[],adj=[],node=(x,z,wait,face)=>{N.push({x,z,wait,face})
   const out=node(0,-55,true);link(out,Wn[0]);return {N,adj}})();
 const CREW=(()=>{const N=[[-14,22],[-14,58],[16,58],[16,22]].map(([x,z])=>({x,z,wait:true}));return {N,adj:[[1,3],[0,2],[1,3],[2,0]]}})();
 function buildPeople(g){const P2=[],seats=g.userData.seats;let sd=4242;const r=()=>{sd=(sd*16807)%2147483647;return (sd-1)/2147483646};
-  const mk=(o,nav,at)=>{const m=makeJointed(o);m.traverse(q=>{if(q.isMesh)q.castShadow=false});const sc=.92+r()*.14;m.scale.setScalar(sc);const n0=nav.N[at];
-    const p={g:m,nav,to:at,from:at,x:n0.x,z:n0.z,yaw:0,sp:1.05+r()*.5,ph:r()*6,wait:r()*3,sc};if(r()<.45&&nav===NAV){const bag=new THREE.Mesh(new RoundedBoxGeometry(.38,.55,.24,2,.04),LM([0x1d1d22,0x2f4a6b,0x7a2f2f,0x3a3a3a][(r()*4)|0],.25,{roughness:.5}));bag.position.set(.34,-.62,.32);bag.rotation.x=-.35;m.add(bag);p.bag=bag}g.add(m);P2.push(p);return p};
+  let vi=0;const person=o=>{if(!HUM)return makeJointed(o);const m=makeReal(vi++);return m};
+  const mk=(o,nav,at)=>{const m=person(o);m.traverse(q=>{if(q.isMesh)q.castShadow=false});const sc=.92+r()*.14;m.scale.setScalar(sc);const n0=nav.N[at];
+    const p={g:m,nav,to:at,from:at,x:n0.x,z:n0.z,yaw:0,sp:HUM?1.15+r()*.3:1.05+r()*.5,ph:r()*6,wait:r()*3,sc};if(r()<.45&&nav===NAV){const bag=new THREE.Mesh(new RoundedBoxGeometry(.38,.55,.24,2,.04),LM([0x1d1d22,0x2f4a6b,0x7a2f2f,0x3a3a3a][(r()*4)|0],.25,{roughness:.5}));bag.position.set(.34,-.62,.32);bag.rotation.x=-.35;m.add(bag);p.bag=bag}if(HUM)p.mix=realMixer(m);g.add(m);P2.push(p);return p};
   const W=LOW?7:15;for(let i=0;i<W;i++)mk(randPerson(r),NAV,(r()*NAV.N.length)|0);
   for(let i=0;i<2;i++){const o=randPerson(r);o.shirt=0xff7a1a;o.pants=0x2a2f38;o.sleeves=1;mk(o,CREW,i*2)}
-  const free=seats.slice().sort(()=>r()-.5);for(let i=0;i<(LOW?6:16)&&i<free.length;i++){const st2=free[i];if(r()<.15)continue;st2.npc=true;const m=makeJointed(randPerson(r));m.traverse(q=>{if(q.isMesh)q.castShadow=false});
-    const u=m.userData;u.legL.rotation.x=u.legR.rotation.x=Math.PI/2;u.legL.userData.knee.rotation.x=u.legR.userData.knee.rotation.x=-Math.PI/2;u.armL.rotation.x=u.armR.rotation.x=.9+r()*.3;
+  const free=seats.slice().sort(()=>r()-.5);for(let i=0;i<(LOW?6:16)&&i<free.length;i++){const st2=free[i];if(r()<.15)continue;st2.npc=true;const m=person(randPerson(r));m.traverse(q=>{if(q.isMesh)q.castShadow=false});
+    const u=m.userData;u.legL.rotation.x=u.legR.rotation.x=Math.PI/2;u.legL.userData.knee.rotation.x=u.legR.userData.knee.rotation.x=-Math.PI/2;u.armL.rotation.x=u.armR.rotation.x=.9+r()*.3;if(HUM){u.armL.userData.knee.rotation.x=u.armR.userData.knee.rotation.x=.5;u.armL.rotation.z=-.15;u.armR.rotation.z=.15;u.apply()}
     m.position.set(st2.lx+Math.sin(st2.yaw)*.06,.55,st2.lz+Math.cos(st2.yaw)*.06);m.rotation.y=st2.yaw;g.add(m);P2.push({g:m,sit:true,ph:r()*6})}
   // staff behind every counter
   const staff=[[-46,-87.1,{shirt:0x1d1d1f,apron:0x2f5a34,sleeves:1},'barista'],[-9.25,-85.4,{shirt:0x14294a,badge:true,sleeves:0},'clerk'],[35.75,-85.4,{shirt:0x2f6b72,badge:true,sleeves:0},'clerk'],[8,-87.2,{shirt:0xf4f4f2,blazer:0x14294a,badge:true,collar:true,sleeves:1,pants:0x14294a},'agent']];
-  staff.forEach(([x,z,look,job])=>{const o=Object.assign(randPerson(r),look);if(job==='agent')o.shirt=0x14294a;const m=makeJointed(o);m.traverse(q=>{if(q.isMesh)q.castShadow=false});m.position.set(x,.95,z);m.rotation.y=Math.PI;g.add(m);P2.push({g:m,staff:job,ph:r()*6,x,z})});
+  staff.forEach(([x,z,look,job])=>{const o=Object.assign(randPerson(r),look);if(job==='agent')o.shirt=0x14294a;const m=person(o);m.traverse(q=>{if(q.isMesh)q.castShadow=false});m.position.set(x,.95,z);m.rotation.y=Math.PI;g.add(m);P2.push({g:m,staff:job,ph:r()*6,x,z,mix:HUM?realMixer(m):null})});
   g.userData.people=P2}
 function peopleTick(dt,t){const g=GATE.grp;if(!g||!g.visible||camera.position.distanceTo(GATE.A)>900)return;
   for(const n of g.userData.people){const u=n.g.userData;
-    if(n.staff){const k=t+n.ph;u.head.rotation.y=Math.sin(k*.4)*.5;n.g.rotation.y=Math.PI+Math.sin(k*.23)*.25;
+    if(n.mix){const moving=!n.staff&&!(n.wait>0),w=n.mix.walk.getEffectiveWeight(),tw=moving?1:0,nw=w+(tw-w)*Math.min(1,dt*5);n.mix.walk.setEffectiveWeight(nw);n.mix.idle.setEffectiveWeight(1-nw);n.mix.walk.timeScale=n.sp/1.9;n.mix.mx.update(dt)}
+    if(n.staff){const k=t+n.ph;if(n.mix){n.g.rotation.y=Math.PI+Math.sin(k*.23)*.3;n.g.position.x=n.x+Math.sin(k*.3)*.25;continue}u.head.rotation.y=Math.sin(k*.4)*.5;n.g.rotation.y=Math.PI+Math.sin(k*.23)*.25;
       if(n.staff==='barista'){u.armR.rotation.x=1.1+Math.sin(k*2.2)*.25;u.armL.rotation.x=.7+Math.sin(k*1.3)*.2}else if(n.staff==='agent'){u.armL.rotation.x=u.armR.rotation.x=.9+Math.sin(k*6)*.04}else{u.armR.rotation.x=.4+Math.max(0,Math.sin(k*.7))*.6;u.armL.rotation.x=.15}
       n.g.position.x=n.x+Math.sin(k*.3)*.25;continue}
     if(n.sit){u.head.rotation.y=Math.sin(t*.25+n.ph)*.45;u.head.rotation.x=Math.sin(t*.17+n.ph*2)*.12;continue}
+    if(n.mix){if(n.wait>0){n.wait-=dt;const f=n.nav.N[n.to].face;if(f!==undefined){let d=f-n.yaw;d=Math.atan2(Math.sin(d),Math.cos(d));n.yaw+=d*Math.min(1,dt*3)}n.g.position.set(n.x,.95*n.sc,n.z);n.g.rotation.y=n.yaw;continue}
+      const T=n.nav.N[n.to],dx=T.x-n.x,dz=T.z-n.z,d=Math.hypot(dx,dz);if(d<.12){const nb=n.nav.adj[n.to],opts=nb.length>1?nb.filter(k=>k!==n.from):nb;n.from=n.to;n.to=opts[(Math.random()*opts.length)|0];if(T.wait&&Math.random()<.55)n.wait=1.5+Math.random()*5;continue}
+      const step=Math.min(d,n.sp*dt);n.x+=dx/d*step;n.z+=dz/d*step;let dy=Math.atan2(-dx,-dz)-n.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));n.yaw+=dy*Math.min(1,dt*7);n.g.position.set(n.x,.95*n.sc,n.z);n.g.rotation.y=n.yaw;continue}
     const relax=k=>{u.legL.rotation.x*=k;u.legR.rotation.x*=k;u.armL.rotation.x*=k;u.armR.rotation.x*=k;u.legL.userData.knee.rotation.x*=k;u.legR.userData.knee.rotation.x*=k};
     if(n.wait>0){n.wait-=dt;relax(Math.exp(-dt*6));u.head.rotation.y=Math.sin(t*.6+n.ph)*.6;const f=n.nav.N[n.to].face;if(f!==undefined){let d=f-n.yaw;d=Math.atan2(Math.sin(d),Math.cos(d));n.yaw+=d*Math.min(1,dt*3)}
       n.g.position.set(n.x,.95*n.sc,n.z);n.g.rotation.y=n.yaw;continue}
@@ -1138,7 +1192,7 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last
   if(doorOpen)doorT=Math.min(1,doorT+dt*4);DOOR.rotation.y=sstep(0,1,doorT)*1.7;
   winT=clamp(winT+(winOpen?dt*2.5:-dt*2),0,1);WIN_PANE.position.z=-10.9+winT*.95;
   setInside(st!=='throwing'&&st!=='gate'&&!(st==='fly'&&view==='chase'));
-  pilotTick(dt,t);cameraTick(dt,t);fxTick(dt);treeUpdate();
+  pilotTick(dt,t);for(const g of REALPOSE)if(g.visible&&(g.parent===scene||INNER.visible||st==='throwing'))g.userData.apply();cameraTick(dt,t);fxTick(dt);treeUpdate();
   if(INNER.visible&&(pfdN++%2===0))drawPFD();
   const a=st==='walk'||st==='seated'||st==='gate'?currentAction():null;setPrompt(a?a.t:'');$('cross').style.display=(st==='walk'||st==='seated'||st==='gate')&&!TOUCH?'block':'none';
   if(TOUCH){const b=$('bAct'),fl=st==='fly';b.style.display=fl&&F.mode==='air'?'none':'block';b.textContent=fl?(F.mode==='crashed'?'↻':F.brk?'🛑':'B'):'✋';$('rot').style.display=fl&&innerHeight>innerWidth&&F.mode!=='crashed'?'block':'none'}
