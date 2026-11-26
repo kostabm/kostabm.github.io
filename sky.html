@@ -59,6 +59,7 @@ button{font:inherit;font-weight:800;font-size:18px;padding:12px 34px;border-radi
   <div id="keys"><b>Mouse</b> look · <b>W A S D</b> walk · <b>E</b> interact<br>Flying: <b>W</b>/<b>S</b> nose down/up · <b>A</b>/<b>D</b> roll · <b>Q</b>/<b>E</b> rudder · <b>Shift</b>/<b>Z</b> throttle · <b>G</b> gear · <b>B</b> brakes · <b>C</b> camera</div>
   <a href="./">← Kosta's Games</a>
 </div>
+<div id="rwpill" style="position:fixed;top:14px;left:50%;transform:translateX(-50%);display:none;background:rgba(0,0,0,.5);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:700;z-index:3;pointer-events:none;white-space:nowrap"></div>
 <div id="obj"><small>OBJECTIVE</small><span id="objt"></span></div>
 <div id="prompt"></div>
 <div id="cross"></div>
@@ -787,6 +788,8 @@ const rcRay=new THREE.Raycaster(),DOWNV=new THREE.Vector3(0,-1,0),rcO=new THREE.
 function realH(x,z){const k=Math.round(x/8)+','+Math.round(z/8),c=RW.cache.get(k),now=performance.now();if(c&&now-c.t<1500)return c.h;
   rcO.set(x,9000,z);rcRay.set(rcO,DOWNV);rcRay.far=14000;const hit=rcRay.intersectObject(RW.holder,true)[0],h=hit?hit.point.y:(c?c.h:-1e4);
   if(RW.cache.size>30000)RW.cache.clear();RW.cache.set(k,{h,t:now});return h}
+function demElev(x,z){const [la,lo]=xz2ll(x,z),[px,py]=ll2dem(la,lo),i=Math.floor(px-.5),j=Math.floor(py-.5);if(!RW.dem||i<0||j<0||i>=1791||j>=2047)return null;const u=px-.5-i,v=py-.5-j,a=RW.dem,k=j*1792+i;
+  return (a[k]*(1-u)+a[k+1]*u)*(1-v)+(a[k+1792]*(1-u)+a[k+1793]*u)*v-(x*x+z*z)/12742000}
 function demWet(x,z){if(!RW.mask)return false;const [la,lo]=xz2ll(x,z),[px,py]=ll2dem(la,lo),i=Math.round(px),j=Math.round(py);return i>=0&&j>=0&&i<1792&&j<2048&&RW.mask[j*1792+i]===1}
 function gH(x,z){return RW.on?realH(x,z):groundH(x,z)}
 function sH(x,z){return RW.on?realH(x,z):Math.max(groundH(x,z),0)}
@@ -796,14 +799,14 @@ fetch('maps/tahoe_dem.png').then(r=>r.ok?r.blob():Promise.reject(r.status)).then
   const W=bm.width,H=bm.height,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(bm,0,0);const d=g.getImageData(0,0,W,H).data,h=new Float32Array(W*H);
   for(let i=0;i<h.length;i++)h[i]=((d[i*4]<<8)|d[i*4+1])/4-450;
   const m=new Uint8Array(W*H),q=[851+790*W];m[q[0]]=1;while(q.length){const k=q.pop(),x=k%W,y=(k/W)|0;for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const a=x+dx,b=y+dy;if(a<443||a>1229||b<151||b>1427)continue;const kk=b*W+a;if(!m[kk]&&h[kk]<.5){m[kk]=1;q.push(kk)}}}
-  RW.mask=m;const S=360,mc=document.createElement('canvas');mc.width=mc.height=S;const mg=mc.getContext('2d'),im=mg.createImageData(S,S);
+  RW.mask=m;RW.dem=h;const S=360,mc=document.createElement('canvas');mc.width=mc.height=S;const mg=mc.getContext('2d'),im=mg.createImageData(S,S);
   const H2=(x,z)=>{const [la,lo]=xz2ll(x,z),[px,py]=ll2dem(la,lo),i=clamp(Math.round(px),0,W-1),j=clamp(Math.round(py),0,H-1);return [h[j*W+i],m[j*W+i]]};
   for(let y=0;y<S;y++)for(let x=0;x<S;x++){const wx=(x/S-.5)*64000,wz=(y/S-.5)*64000,[hh,wet]=H2(wx,wz),[h2]=H2(wx-120,wz-120),sh=clamp((h2-hh)*.01,-.3,.3),k=(y*S+x)*4;let r,gg,b;
     if(wet){r=40;gg=105;b=150}else if(hh>1150){r=228;gg=230;b=232}else{const t=clamp((hh+450)/1600,0,1);r=95+t*70;gg=120+t*40;b=70+t*50}
     im.data[k]=clamp(r*(1+sh),0,255);im.data[k+1]=clamp(gg*(1+sh),0,255);im.data[k+2]=clamp(b*(1+sh),0,255);im.data[k+3]=255}
   mg.putImageData(im,0,0);RW.map=mc;
   RW.places=[['South Lake Tahoe',38.935,-119.984],['Emerald Bay',38.954,-120.105],['Tahoe City',39.168,-120.142],['Incline Village',39.251,-119.953],['Lake Tahoe Airport',38.894,-119.995],['Heavenly',38.935,-119.906],['Kings Beach',39.238,-120.026],['Zephyr Cove',39.006,-119.948],['Mt. Tallac',38.906,-120.099],['Sand Harbor',39.198,-119.931]].map(([n,la,lo])=>{const [x,z]=ll2xz(la,lo),[hh]=H2(x,z);return [n,x,z,hh]})}).catch(e=>console.warn('elevation data unavailable',e));
-function setReal(on){RW.on=on;PROC.forEach(o=>o.visible=!on);if(on&&!RW.labelled){RW.labelled=true;AP.z=0;RW.places.forEach(([n,x,z,hh])=>label(n,x,hh+260-(x*x+z*z)/12742000,z))}$('attrib').style.display=on?'block':'none'}
+function setReal(on){RW.on=on;PROC.forEach(o=>o.visible=!on);if(SKYDOME)CLOUD_M.forEach(m=>m.visible=!on);if(on&&!RW.labelled){RW.labelled=true;AP.z=0;RW.places.forEach(([n,x,z,hh])=>label(n,x,hh+260-(x*x+z*z)/12742000,z))}$('attrib').style.display=on?'block':'none'}
 RW.labels=[];
 if(!/procedural/.test(location.search)){$('rwstat').textContent='🌍 Loading the real world (Lake Tahoe, photo-scanned in 3D)…';
   import('https://cdn.jsdelivr.net/npm/3d-tiles-renderer@0.3.46/src/index.js').then(T=>{
@@ -811,17 +814,22 @@ if(!/procedural/.test(location.search)){$('rwstat').textContent='🌍 Loading th
     const tiles=new T.TilesRenderer();tiles.registerPlugin(new T.CesiumIonAuthPlugin({apiToken:CESIUM.token,assetId:CESIUM.asset,autoRefreshToken:true}));
     tiles.errorTarget=LOW?18:10;const GB=1024**3;Object.assign(tiles.lruCache,LOW?{minBytesSize:.25*GB,maxBytesSize:.35*GB}:{minBytesSize:.7*GB,maxBytesSize:.9*GB,minSize:9000,maxSize:12000});
     tiles.setLatLonToYUp(CESIUM.lat*Math.PI/180,CESIUM.lon*Math.PI/180);
-    tiles.addEventListener('load-model',({scene:sc})=>sc.traverse(o=>{if(o.isMesh&&o.material){o.material.toneMapped=false;o.material.fog=true}}));
+    RW.models=0;RW.t0=performance.now();tiles.addEventListener('load-model',({scene:sc})=>{RW.models++;sc.traverse(o=>{if(o.isMesh&&o.material){o.material.toneMapped=false;o.material.fog=true}})});
     tiles.setCamera(camera);holder.add(tiles.group);RW.tiles=tiles;
+    const status=t=>{$('rwstat').textContent=t;const pl=$('rwpill');pl.textContent=t;pl.style.display=(!RW.on&&st!=='menu')?'block':'none'};
+    status('🌍 Connecting to Google\'s 3D world…');
+    const look=new THREE.Vector3(),dirs=[[0,0],[.35,.2],[-.35,.2],[.35,-.25],[-.35,-.25],[0,-.4],[0,.3]];
     RW.tick=dt=>{RW.t+=dt;camera.updateMatrixWorld();tiles.downloadQueue.maxJobs=LOW?12:24;tiles.parseQueue.maxJobs=LOW?4:8;tiles.setResolutionFromRenderer(camera,renderer);tiles.update();
-      if(!RW.on&&!RW.failed){// level the scanned world so Lake Tahoe's surface sits at height 0, then switch over
-        if((RW.t*3|0)!==((RW.t-dt)*3|0)){rcO.set(0,9000,0);rcRay.set(rcO,DOWNV);rcRay.far=14000;const hit=rcRay.intersectObject(holder,true)[0];
-          if(hit){const h=hit.point.y;holder.position.y-=h;holder.updateMatrixWorld(true);RW.cache.clear();RW.stable=Math.abs(h)<.5?RW.stable+1:0;$('rwstat').textContent='🌍 Loading the real world… almost there';
-            if(RW.stable>=4&&RW.mask){setReal(true);$('rwstat').textContent='🌍 Real world loaded — you\'re over Lake Tahoe';if(st!=='menu')banner('Real world loaded','Lake Tahoe, photo-scanned in 3D',2.5)}}}
-        if(RW.t>45){RW.failed=true;$('rwstat').textContent='Real world is taking too long — using the made-up valley';tiles.group.visible=false}}
-      if(RW.on&&(RW.attT-=dt)<=0){RW.attT=1;const a=tiles.getAttributions().map(v=>String(v.value).replace(/<[^>]*>/g,'')).filter(Boolean);
+      if(!RW.on||(RW.t*.5|0)!==((RW.t-dt)*.5|0)){// line the scanned world up with the real elevation map: compare where view rays hit the scans with the known ground height there
+        if(RW.on||(RW.t*3|0)!==((RW.t-dt)*3|0)){const off=[];holder.updateMatrixWorld(true);
+          for(const [dx,dy] of dirs){rcRay.setFromCamera({x:dx,y:dy},camera);rcRay.far=60000;const hit=rcRay.intersectObject(holder,true)[0];if(!hit)continue;const e=demElev(hit.point.x,hit.point.z);if(e!==null)off.push(hit.point.y-e)}
+          if(off.length){off.sort((a,b)=>a-b);const med=off[off.length>>1];if(RW.on){if(off.length>=3&&Math.abs(med)>2){holder.position.y-=med*.5;holder.updateMatrixWorld(true);RW.cache.clear()}return}holder.position.y-=med;holder.updateMatrixWorld(true);RW.cache.clear();RW.stable=Math.abs(med)<4?RW.stable+1:0;
+            status(`🌍 Loading the real world… (${RW.models} pieces)`);if(RW.stable>=3){setReal(true);status('🌍 Real world loaded — you\'re over Lake Tahoe');if(st!=='menu')banner('Real world loaded','Lake Tahoe, photo-scanned in 3D',2.5)}}
+          else if(RW.models>0)status(`🌍 Loading the real world… (${RW.models} pieces)`);
+          else if(performance.now()-RW.t0>25000)status(RW.dem?'⚠️ Google\'s 3D world isn\'t responding — flying the made-up valley for now':'⚠️ Elevation map missing — flying the made-up valley');}}
+      if(RW.on&&(RW.attT-=dt)<=0){RW.attT=1;$('rwpill').style.display='none';const a=tiles.getAttributions().map(v=>String(v.value).replace(/<[^>]*>/g,'')).filter(Boolean);
         $('attrib').innerHTML='<b style="font-family:Arial,sans-serif;letter-spacing:-.02em">Google</b> · '+[...new Set(a)].join(' · ').replace(/</g,'&lt;')+' · 3D tiles via Cesium ion'}};
-  }).catch(e=>{RW.failed=true;console.warn('3D tiles failed',e);$('rwstat').textContent='Could not load the real world — using the made-up valley'})}
+  }).catch(e=>{RW.failed=true;console.warn('3D tiles failed',e);$('rwstat').textContent='⚠️ Could not load the 3D world library — using the made-up valley'})}
 
 // ================= per-frame =================
 const chaseQ=new THREE.Quaternion();
