@@ -498,7 +498,9 @@ function seatedPerson(o,x,y,z,r,out){const P=[];torsoParts(o,P);const H=[];headP
     limbG([.09*sd,-.02,0],[.1*sd,-.02,-.43],.075,o.pants,P,.06);limbG([.1*sd,-.02,-.43],[.1*sd,-.44,-.47],.058,o.pants,P,.045);const sh=new RoundedBoxGeometry(.1,.08,.25,2,.03);sh.translate(.1*sd,-.48,-.53);P.push(colGeo(sh,o.shoes))});
   P.forEach(g=>{g.translate(x,y,z);out.push(g)})}
 // the captain: same body but jointed so he can be grabbed, carried and thrown
-function makePilot(){const o={female:false,hairStyle:0,skin:0xeac3a2,hair:0x7a7a74,eyes:0x3d5a72,lips:0xb88a78,shirt:0xf7f7f4,sleeves:0,pants:0x1b2a4a,shoes:0x0d0d0d,build:1.05,glasses:false,beard:false,collar:true,tie:true,epaulets:true,hat:true};
+const PILOT_O={female:false,hairStyle:0,skin:0xeac3a2,hair:0x7a7a74,eyes:0x3d5a72,lips:0xb88a78,shirt:0xf7f7f4,sleeves:0,pants:0x1b2a4a,shoes:0x0d0d0d,build:1.05,glasses:false,beard:false,collar:true,tie:true,epaulets:true,hat:true};
+function makePilot(){return makeJointed(PILOT_O)}
+function makeJointed(o){
   const g=new THREE.Group(),mk=parts=>{const m=new THREE.Mesh(mergeGeometries(parts),humanMat);m.castShadow=m.receiveShadow=true;return m};
   const T=[];torsoParts(o,T);g.add(mk(T));const head=new THREE.Group();head.position.y=.6;const H=[];headParts(o,H);H.forEach(q=>q.translate(0,-.6,0));head.add(mk(H));g.add(head);
   const arm=sd=>{const p=new THREE.Group();p.position.set(.19*sd*o.build,.46,0);const A=[];limbG([0,0,0],[0,-.27,0],.047,o.shirt,A,.042);limbG([0,-.24,0],[0,-.27,0],.05,o.shirt,A);limbG([0,-.27,0],[0,-.52,0],.04,o.skin,A,.032);blob(.042,o.skin,[0,-.58,-.01],[.75,1.2,.5],A,10,8);p.add(mk(A));g.add(p);return p};
@@ -715,7 +717,9 @@ if(TOUCH){document.body.classList.add('touch');$('again').textContent='🛬 Back
 let anim=null;// {t,d,from,to,done}
 function act(){const a=currentAction();if(a)a.fn()}
 function currentAction(){
-  if(st==='gate')return Math.hypot(eye.x-GATE.foot.x,eye.z-GATE.foot.z)<3.2?{t:'Climb aboard',fn:boardAgain}:null;
+  if(st==='gate'){if(GATE.sit)return {t:'Stand up',fn:standUp};if(Math.hypot(eye.x-GATE.foot.x,eye.z-GATE.foot.z)<3.2)return {t:'Climb aboard',fn:boardAgain};
+    const lx=eye.x-GATE.A.x,lz=eye.z-GATE.A.z,ud=GATE.grp.userData;for(const sh of ud.shops)if(Math.hypot(sh.lx-lx,sh.lz-lz)<1.7)return {t:sh.t,fn:()=>{banner(sh.msg[0],sh.msg[1],2.4);tone(880,0,.15,'sine',.12);tone(1320,.12,.25,'sine',.12)}};
+    let best=null,bd=1.15;for(const s2 of ud.seats){if(s2.npc)continue;const d=Math.hypot(s2.lx-lx,s2.lz-lz);if(d<bd){bd=d;best=s2}}return best?{t:best.cafe?'Sit at the café table':'Sit down',fn:()=>sitAt(best)}:null}
   if(st==='seated')return {t:'Get out of your seat',fn:()=>{st='rising';anim={t:0,d:.8,from:eye.clone(),to:new THREE.Vector3(0,.72,PLAYER_SEAT.z),done:()=>{st='walk';objective('Walk to the front of the plane — the cockpit door.')}}}};
   if(st!=='walk')return null;const x=eye.x,z=eye.z,d=(a,b)=>Math.hypot(x-a,z-b);
   if(boarding)return d(0,PLAYER_SEAT.z)<1?{t:'Sit in your seat (13C)',fn:()=>{st='sitting';boarding=false;anim={t:0,d:.9,from:eye.clone(),to:new THREE.Vector3(PLAYER_SEAT.x,.2,PLAYER_SEAT.z),done:takeOff};yawTo=0}}:null;
@@ -757,16 +761,57 @@ function buildGate(name){const g=new THREE.Group();
     for(let i=0;i<5;i++){c.fillStyle='rgba(30,30,30,.12)';c.beginPath();c.ellipse(rnd()*w,rnd()*h,20+rnd()*40,8+rnd()*20,rnd()*3,0,7);c.fill()}});conc.wrapS=conc.wrapT=THREE.RepeatWrapping;conc.repeat.set(320/7.5,220/7.5);
   const slab=new THREE.Mesh(new THREE.PlaneGeometry(320,220).rotateX(-Math.PI/2),new THREE.MeshStandardMaterial({map:conc,roughness:.95,polygonOffset:true,polygonOffsetFactor:-6,polygonOffsetUnits:-6}));slab.position.set(0,.06,20);slab.receiveShadow=true;g.add(slab);
   const yel=new THREE.MeshBasicMaterial({color:0xd9b32e});[[0,40,.35,90],[-30,20,60,.35]].forEach(([x,z,w,d])=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d).rotateX(-Math.PI/2),yel);m.position.set(x,.09,z);g.add(m)});
-  const glass=canvasTex(512,256,(c,w,h)=>{const gr=c.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#9fb6c9');gr.addColorStop(.5,'#4f6577');gr.addColorStop(1,'#26323d');c.fillStyle=gr;c.fillRect(0,0,w,h);
-    c.fillStyle='rgba(255,255,255,.12)';for(let i=0;i<6;i++){c.beginPath();c.moveTo(rnd()*w,0);c.lineTo(rnd()*w+60,h);c.lineTo(rnd()*w+90,h);c.fill()}c.fillStyle='#c9ccd0';for(let x=0;x<w;x+=32)c.fillRect(x,0,4,h);c.fillRect(0,h/2-2,w,4);c.fillRect(0,0,w,6)});glass.wrapS=THREE.RepeatWrapping;glass.repeat.set(6,1);
-  const wall=LM(0xd9d6cf,.25,{roughness:.8}),term=new THREE.Mesh(new THREE.BoxGeometry(110,13,26),[wall,wall,LM(0x8a8d92,.2),wall,new THREE.MeshStandardMaterial({map:glass,roughness:.12,metalness:.4}),wall]);term.position.set(0,6.5,-75);term.castShadow=term.receiveShadow=true;g.add(term);
-  const roof=new THREE.Mesh(new THREE.BoxGeometry(116,1,32),LM(0xe8e6e0,.25));roof.position.set(0,13.4,-73);g.add(roof);
-  const sign=canvasTex(1024,128,(c,w,h)=>{c.fillStyle='#14294a';c.fillRect(0,0,w,h);c.fillStyle='#fff';c.font='bold 78px system-ui,sans-serif';c.textAlign='center';c.fillText(name,w/2,92)});
-  const sg=new THREE.Mesh(new THREE.PlaneGeometry(40,5),new THREE.MeshStandardMaterial({map:sign,roughness:.5,emissive:0xffffff,emissiveMap:sign,emissiveIntensity:.25}));sg.position.set(0,10.5,-61.9);g.add(sg);
-  const doors=new THREE.Mesh(new THREE.PlaneGeometry(8,3.2),new THREE.MeshStandardMaterial({color:0x2a3540,roughness:.1,metalness:.5}));doors.position.set(0,1.6,-61.95);g.add(doors);
+  // ---- terminal: glass front, open hall with shops, a café, gate seating and a departure board ----
+  const OB=[],SEATS=[],SHOPS=[];g.userData.ob=OB;g.userData.seats=SEATS;g.userData.shops=SHOPS;
+  const wallM=LM(0xe4e1da,.3,{roughness:.85}),dark=LM(0x3a3d42,.2,{roughness:.6}),steel=new THREE.MeshStandardMaterial({color:0xb8bcc2,metalness:.85,roughness:.3});
+  const add=(geo,mat,x,y,z,ry=0)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.rotation.y=ry;m.receiveShadow=true;m.castShadow=!(mat&&mat.transparent);g.add(m);return m},blk=(x0,x1,z0,z1)=>OB.push([x0,x1,z0,z1]);
+  add(new THREE.BoxGeometry(111,13.6,.5),wallM,0,6.8,-88.1);[-1,1].forEach(sd=>add(new THREE.BoxGeometry(.5,13.6,26.6),wallM,55.25*sd,6.8,-75));
+  add(new THREE.BoxGeometry(116,1,32),LM(0xe8e6e0,.25),0,13.9,-74);add(new THREE.BoxGeometry(111,6.4,.4),LM(0xd9d6cf,.25),0,10.4,-62);
+  const tile=canvasTex(256,256,(c,w,h)=>{c.fillStyle='#b4afa6';c.fillRect(0,0,w,h);for(let i=0;i<3000;i++){const v=165+rnd()*40|0;c.fillStyle=`rgba(${v},${v-4},${v-10},.4)`;c.fillRect(rnd()*w,rnd()*h,2,2)}c.fillStyle='rgba(120,115,105,.5)';c.fillRect(0,0,w,2);c.fillRect(0,0,2,h)});
+  tile.wrapS=tile.wrapT=THREE.RepeatWrapping;tile.repeat.set(110/1.2,26/1.2);add(new THREE.PlaneGeometry(110,26).rotateX(-Math.PI/2),new THREE.MeshStandardMaterial({map:tile,roughness:.32,envMapIntensity:.25}),0,.09,-75);
+  const ceil=canvasTex(256,256,(c,w,h)=>{c.fillStyle='#efede8';c.fillRect(0,0,w,h);c.strokeStyle='rgba(0,0,0,.12)';c.lineWidth=3;c.strokeRect(0,0,w,h);c.fillStyle='#fffbef';c.fillRect(40,110,176,36)});ceil.wrapS=ceil.wrapT=THREE.RepeatWrapping;ceil.repeat.set(110/4,26/4);
+  add(new THREE.PlaneGeometry(110,26).rotateX(Math.PI/2),new THREE.MeshStandardMaterial({map:ceil,emissive:0xffffff,emissiveMap:ceil,emissiveIntensity:.32,roughness:.9}),0,7,-75);
+  const gm=new THREE.MeshStandardMaterial({color:0xa9c3d6,transparent:true,opacity:.2,roughness:.04,metalness:.3,depthWrite:false,side:THREE.DoubleSide,envMapIntensity:1.2});
+  [-29.3,29.3].forEach(x=>add(new THREE.PlaneGeometry(51.4,7),gm,x,3.5,-62));add(new THREE.PlaneGeometry(7.2,3.6),gm,0,5.2,-62);
+  for(let x=-55;x<=55.1;x+=4.3)if(Math.abs(x)>3.4)add(new THREE.BoxGeometry(.12,7,.18),steel,x,3.5,-62);[-3.6,3.6].forEach(x=>add(new THREE.BoxGeometry(.2,7,.22),steel,x,3.5,-62));
+  {const sign=canvasTex(1024,128,(c,w,h)=>{c.fillStyle='#14294a';c.fillRect(0,0,w,h);c.fillStyle='#fff';c.font='bold 78px system-ui,sans-serif';c.textAlign='center';c.fillText(name,w/2,92)});
+    add(new THREE.PlaneGeometry(40,5),new THREE.MeshStandardMaterial({map:sign,roughness:.5,emissive:0xffffff,emissiveMap:sign,emissiveIntensity:.25}),0,10.5,-61.75)}
+  add(new THREE.BoxGeometry(110,.14,.2),steel,0,3.4,-62);add(new THREE.BoxGeometry(110,.22,.24),steel,0,.11,-62);
+  const signT=(t,bg,fg,font)=>canvasTex(512,96,(c,w,h)=>{c.fillStyle=bg;c.fillRect(0,0,w,h);c.fillStyle=fg;c.font=font||'bold 50px Georgia,serif';c.textAlign='center';c.fillText(t,w/2,64)});
+  const hang=(t,x,z,bg,fg,w=8)=>{add(new THREE.PlaneGeometry(w,w*.1875),new THREE.MeshBasicMaterial({map:signT(t,bg,fg),toneMapped:false,color:0xdddddd}),x,5.4,z);[-1,1].forEach(sd=>add(new THREE.CylinderGeometry(.015,.015,1.6,4),steel,x+sd*w*.4,6.2,z))};
+  const goods=canvasTex(256,256,(c,w,h)=>{c.fillStyle='#4a3a2a';c.fillRect(0,0,w,h);for(let y=0;y<4;y++){c.fillStyle='#2e241a';c.fillRect(0,y*64+56,w,8);for(let x=4;x<w-10;){const bw=8+rnd()*18,bh=24+rnd()*28;c.fillStyle=`hsl(${rnd()*360},${40+rnd()*40}%,${35+rnd()*35}%)`;c.fillRect(x,y*64+56-bh,bw,bh);x+=bw+2}}});
+  const gM=new THREE.MeshStandardMaterial({map:goods,roughness:.7}),shelf=(x0,x1,z,d,h)=>{add(new THREE.BoxGeometry(x1-x0,h,d),[dark,dark,dark,dark,gM,gM],(x0+x1)/2,h/2,z);blk(x0,x1,z-d/2,z+d/2)};
+  const counter=(x0,x1,z0,z1,col)=>{add(new RoundedBoxGeometry(x1-x0,1.05,z1-z0,2,.05),LM(col,.3,{roughness:.5}),(x0+x1)/2,.53,(z0+z1)/2);add(new THREE.BoxGeometry(x1-x0+.1,.05,z1-z0+.1),new THREE.MeshStandardMaterial({color:0x2a2a2a,roughness:.15,metalness:.3}),(x0+x1)/2,1.07,(z0+z1)/2);blk(x0,x1,z0,z1)};
+  // café
+  counter(-52,-40,-86.4,-85.2,0x7a5236);hang('☕  PINE CAFÉ',-46,-84.4,'#2f4a32','#f3ead8');
+  add(new THREE.BoxGeometry(.7,.55,.5),steel,-49,1.37,-85.8);add(new THREE.BoxGeometry(1.8,.45,.6),gm,-43.5,1.33,-85.8);[-44.1,-43.6,-43.1,-42.8].forEach(x=>add(new THREE.SphereGeometry(.09,10,8),LM(0xc98a4a,.3),x,1.2,-85.8));
+  add(new THREE.PlaneGeometry(6,2.4),new THREE.MeshBasicMaterial({map:canvasTex(512,200,(c,w,h)=>{c.fillStyle='#1d1d1b';c.fillRect(0,0,w,h);c.fillStyle='#f1e9d8';c.font='bold 30px Georgia,serif';c.fillText('MENU',20,40);c.font='22px Georgia,serif';
+    [['Espresso','3.25'],['Latte','4.75'],['Mocha','5.25'],['Drip coffee','2.95'],['Croissant','3.50'],['Muffin','3.25']].forEach(([a,b],i)=>{c.fillText(a,20+(i>2?250:0),80+(i%3)*38);c.fillText('$'+b,170+(i>2?250:0),80+(i%3)*38)})}),toneMapped:false,color:0xcccccc}),-46,3.6,-87.8);
+  const SM=LM(0x26324a,.3,{roughness:.9}),FR=new THREE.MeshStandardMaterial({color:0x707479,metalness:.7,roughness:.35});
+  const chairG=mergeGeometries([colGeo(new RoundedBoxGeometry(.5,.08,.48,2,.03).translate(0,.45,0),0x2d3a55),colGeo(new RoundedBoxGeometry(.5,.55,.07,2,.03).translate(0,.75,-.24),0x2d3a55),colGeo(new THREE.BoxGeometry(.04,.42,.04).translate(-.21,.21,.18),0x707479),colGeo(new THREE.BoxGeometry(.04,.42,.04).translate(.21,.21,.18),0x707479),colGeo(new THREE.BoxGeometry(.04,.42,.04).translate(-.21,.21,-.18),0x707479),colGeo(new THREE.BoxGeometry(.04,.42,.04).translate(.21,.21,-.18),0x707479)]);
+  const seat=(lx,lz,yaw,cafe)=>SEATS.push({lx,lz,yaw,cafe});
+  [-50,-45,-40].forEach(tx=>{add(new THREE.CylinderGeometry(.45,.45,.04,20),LM(0xe8e2d6,.3,{roughness:.4}),tx,.76,-80);add(new THREE.CylinderGeometry(.04,.04,.74,8),FR,tx,.38,-80);blk(tx-.48,tx+.48,-80.48,-79.52);
+    seat(tx-.85,-80,-Math.PI/2,true);seat(tx+.85,-80,Math.PI/2,true);add(new THREE.CylinderGeometry(.04,.05,.1,8),LM(0xffffff,.4),tx+.1,.83,-80)});
+  // newsstand + souvenirs
+  shelf(-24,-10,-87.4,.7,2.3);shelf(-21,-13,-82.5,.9,1.6);counter(-10.5,-8,-84.6,-83.2,0x5a5f66);hang('TAHOE NEWS & GIFTS',-16,-84.8,'#14294a','#ffffff',9);
+  shelf(20,34,-87.4,.7,2.3);shelf(23,31,-82.5,.9,1.6);counter(34.5,37,-84.6,-83.2,0x2f6b72);hang('LAKE LIFE · SOUVENIRS',27,-84.8,'#2f6b72','#ffffff',9);
+  SHOPS.push({lx:-46,lz:-84.2,t:'Buy a coffee ☕',msg:['Here\'s your latte ☕','Careful, it\'s hot!']},{lx:-9.25,lz:-82.5,t:'Buy a snack 🍫',msg:['You bought a chocolate bar 🍫','Enjoy your flight!']},{lx:35.75,lz:-82.5,t:'Buy a souvenir 🧢',msg:['You bought a Lake Tahoe cap 🧢','Looking good!']});
+  // departures board + gate desk + restrooms
+  add(new THREE.PlaneGeometry(9,4),new THREE.MeshBasicMaterial({toneMapped:false,map:canvasTex(1024,456,(c,w,h)=>{c.fillStyle='#0b0f17';c.fillRect(0,0,w,h);c.fillStyle='#ffd24a';c.font='bold 46px monospace';c.fillText('DEPARTURES',30,58);c.font='28px monospace';
+    [['10:05','PA 22','LAKE TAHOE','3','BOARDING','#7cf57c'],['10:20','PA 108','SAN FRANCISCO','5','ON TIME','#ffffff'],['10:45','PA 31','RENO','2','ON TIME','#ffffff'],['11:10','PA 76','LOS ANGELES','4','DELAYED','#ff7a6b'],['11:30','PA 54','SEATTLE','1','ON TIME','#ffffff'],['12:15','PA 9','DENVER','6','ON TIME','#ffffff']]
+    .forEach((r,i)=>{const y=120+i*54;c.fillStyle='#ffffff';c.fillText(r[0],30,y);c.fillText(r[1],150,y);c.fillText(r[2],290,y);c.fillText('GATE '+r[3],640,y);c.fillStyle=r[5];c.fillText(r[4],800,y)})})}),0,4,-87.8);
+  counter(6,10,-86.6,-85.6,0x14294a);hang('GATE 3 · PA 22',8,-84.9,'#14294a','#ffd24a',6);
+  add(new THREE.PlaneGeometry(2.2,2.6),dark,46,1.3,-87.8);add(new THREE.PlaneGeometry(3,.6),new THREE.MeshBasicMaterial({map:signT('🚻 RESTROOMS','#2a2d33','#fff','bold 44px system-ui'),toneMapped:false}),46,3.1,-87.8);
+  // gate seating rows facing the windows
+  const rows=[];[[-44,-12,-28],[10,44,27]].forEach(([x0,x1,gap])=>[-66.5,-69,-71.5].forEach((rz,ri)=>{if(x0<0&&ri===2)return;let sx=x0;for(let x=x0;x<=x1;x+=.62){if(Math.abs(x-gap)<.9){if(sx<x-.5){blk(sx-.25,x-.6,rz-.3,rz+.35)}sx=x+.62;continue}seat(x,rz,Math.PI,false)}blk(sx-.25,x1+.25,rz-.3,rz+.35)}));
+  const chairs=new THREE.InstancedMesh(chairG,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.6,metalness:.2}),SEATS.length),mm=new THREE.Matrix4(),qq=new THREE.Quaternion();
+  SEATS.forEach((s2,i)=>{qq.setFromAxisAngle(UPV,s2.yaw+Math.PI);mm.compose(new THREE.Vector3(s2.lx,.09,s2.lz),qq,new THREE.Vector3(1,1,1));chairs.setMatrixAt(i,mm)});chairs.receiveShadow=true;g.add(chairs);
+  // plants and bins
+  [[-53,-64],[53,-64],[-53,-86.6],[53,-86.6],[-6,-86.6],[13,-86.6],[-5.5,-64.6],[5.5,-64.6]].forEach(([x,z])=>{add(new THREE.CylinderGeometry(.4,.3,.6,14),LM(0x6b6f75,.25),x,.39,z);for(let k=0;k<7;k++)add(new THREE.SphereGeometry(.35+rnd()*.25,10,8),LM(0x3f6b34,.3,{roughness:.8}),x+(rnd()-.5)*.5,.95+rnd()*.9,z+(rnd()-.5)*.5);blk(x-.45,x+.45,z-.45,z+.45)});
+  [[-30,-77.5],[0,-77.8],[30,-77.5]].forEach(([x,z])=>{add(new THREE.CylinderGeometry(.25,.25,.85,12),steel,x,.52,z);blk(x-.28,x+.28,z-.28,z+.28)});
   const pole=LM(0x9a9da2,.2);[-120,-40,40,120].forEach(x=>{const p=new THREE.Mesh(new THREE.CylinderGeometry(.18,.25,18,8),pole);p.position.set(x,9,100);g.add(p);const l=new THREE.Mesh(new THREE.BoxGeometry(3,.5,1),pole);l.position.set(x,18,99.5);g.add(l)});
   const cone=LM(0xff6a1a,.3);[[-12,30],[-14,34],[12,46],[16,46]].forEach(([x,z])=>{const c=new THREE.Mesh(new THREE.ConeGeometry(.22,.75,12),cone);c.position.set(x,.38,z);g.add(c)});
-  scene.add(g);return g}
+  buildPeople(g);scene.add(g);return g}
 function gateSpot(){if(RW.on){const [x,z]=ll2xz(38.8928,-119.9978),e=demElev(x,z);return new THREE.Vector3(x,(e===null?0:e)+1.2,z)}return new THREE.Vector3(RWY.x+230,RWY.h,RWY.z+700)}
 function parkPlane(){GATE.grp.position.copy(GATE.A);GATE.grp.visible=true;
   P.visible=true;P.position.set(GATE.A.x,GATE.A.y+3.4,GATE.A.z+40);P.quaternion.setFromEuler(EUL.set(0,-Math.PI/2,0));F.mode='parked';F.speed=0;F.thr=0;F.gear=1;F.gearT=1;F.ctl.p=F.ctl.r=F.ctl.y=0;GEAR.visible=true;GEAR.scale.y=1;
@@ -774,19 +819,52 @@ function parkPlane(){GATE.grp.position.copy(GATE.A);GATE.grp.visible=true;
 // a fresh flight: captain back in his seat, cockpit door shut
 function resetStory(){if(pilot.parent!==INNER)INNER.add(pilot);pilot.visible=true;{const u=pilot.userData;u.legL.rotation.z=u.legR.rotation.z=0;u.head.rotation.set(0,0,0)}pilotSeated();pil='seated';doorOpen=0;doorT=0;winOpen=false;winT=0;thr.t=0;thr.ct=0;thr.yell=0;bubT=0;boarding=false}
 let boarding=false;
+
+// ---------- travellers: walk between shops, windows and the door; others wait in seats or at café tables ----------
+const NAV=(()=>{const N=[],adj=[],node=(x,z,wait,face)=>{N.push({x,z,wait,face});adj.push([]);return N.length-1},link=(a,b)=>{adj[a].push(b);adj[b].push(a)};
+  const cx=[-52,-46,-40,-34,-28,-22,-16,-10,-4,0,4,10,16,22,27,32,38,44,50],C={};cx.forEach((x,i)=>{C[x]=node(x,-76.5);if(i)link(C[cx[i-1]],C[x])});
+  const wx=[-50,-40,-28,-15,-4,0,4,15,27,40,50],Wn={};wx.forEach((x,i)=>{Wn[x]=node(x,-63.4,![0,-4,4].includes(x),Math.PI);if(i)link(Wn[wx[i-1]],Wn[x])});
+  link(C[-28],Wn[-28]);link(C[27],Wn[27]);link(C[0],Wn[0]);
+  link(node(-46,-83.9,true,0),C[-46]);link(node(-17,-83.9,true,0),C[-16]);link(node(27,-83.9,true,0),C[27]);link(node(0,-84.5,true,0),C[0]);link(node(46,-85.5,true,0),C[44]);
+  const out=node(0,-55,true);link(out,Wn[0]);return {N,adj}})();
+const CREW=(()=>{const N=[[-14,22],[-14,58],[16,58],[16,22]].map(([x,z])=>({x,z,wait:true}));return {N,adj:[[1,3],[0,2],[1,3],[2,0]]}})();
+function buildPeople(g){const P2=[],seats=g.userData.seats;let sd=4242;const r=()=>{sd=(sd*16807)%2147483647;return (sd-1)/2147483646};
+  const mk=(o,nav,at)=>{const m=makeJointed(o);m.traverse(q=>{if(q.isMesh)q.castShadow=false});const sc=.92+r()*.14;m.scale.setScalar(sc);const n0=nav.N[at];
+    const p={g:m,nav,to:at,from:at,x:n0.x,z:n0.z,yaw:0,sp:1.05+r()*.5,ph:r()*6,wait:r()*3,sc};if(r()<.45&&nav===NAV){const bag=new THREE.Mesh(new RoundedBoxGeometry(.38,.55,.24,2,.04),LM([0x1d1d22,0x2f4a6b,0x7a2f2f,0x3a3a3a][(r()*4)|0],.25,{roughness:.5}));bag.position.set(.34,-.62,.32);bag.rotation.x=-.35;m.add(bag);p.bag=bag}g.add(m);P2.push(p);return p};
+  const W=LOW?7:15;for(let i=0;i<W;i++)mk(randPerson(r),NAV,(r()*NAV.N.length)|0);
+  for(let i=0;i<2;i++){const o=randPerson(r);o.shirt=0xff7a1a;o.pants=0x2a2f38;o.sleeves=1;mk(o,CREW,i*2)}
+  const free=seats.slice().sort(()=>r()-.5);for(let i=0;i<(LOW?6:16)&&i<free.length;i++){const st2=free[i];if(r()<.15)continue;st2.npc=true;const m=makeJointed(randPerson(r));m.traverse(q=>{if(q.isMesh)q.castShadow=false});
+    const u=m.userData;u.legL.rotation.x=u.legR.rotation.x=Math.PI/2;u.legL.userData.knee.rotation.x=u.legR.userData.knee.rotation.x=-Math.PI/2;u.armL.rotation.x=u.armR.rotation.x=.9+r()*.3;
+    m.position.set(st2.lx+Math.sin(st2.yaw)*.06,.55,st2.lz+Math.cos(st2.yaw)*.06);m.rotation.y=st2.yaw;g.add(m);P2.push({g:m,sit:true,ph:r()*6})}
+  g.userData.people=P2}
+function peopleTick(dt,t){const g=GATE.grp;if(!g||!g.visible||camera.position.distanceTo(GATE.A)>900)return;
+  for(const n of g.userData.people){const u=n.g.userData;if(n.sit){u.head.rotation.y=Math.sin(t*.25+n.ph)*.45;u.head.rotation.x=Math.sin(t*.17+n.ph*2)*.12;continue}
+    const relax=k=>{u.legL.rotation.x*=k;u.legR.rotation.x*=k;u.armL.rotation.x*=k;u.armR.rotation.x*=k;u.legL.userData.knee.rotation.x*=k;u.legR.userData.knee.rotation.x*=k};
+    if(n.wait>0){n.wait-=dt;relax(Math.exp(-dt*6));u.head.rotation.y=Math.sin(t*.6+n.ph)*.6;const f=n.nav.N[n.to].face;if(f!==undefined){let d=f-n.yaw;d=Math.atan2(Math.sin(d),Math.cos(d));n.yaw+=d*Math.min(1,dt*3)}
+      n.g.position.set(n.x,.95*n.sc,n.z);n.g.rotation.y=n.yaw;continue}
+    const T=n.nav.N[n.to],dx=T.x-n.x,dz=T.z-n.z,d=Math.hypot(dx,dz);
+    if(d<.12){const nb=n.nav.adj[n.to],opts=nb.length>1?nb.filter(k=>k!==n.from):nb;n.from=n.to;n.to=opts[(Math.random()*opts.length)|0];if(T.wait&&Math.random()<.55)n.wait=1.5+Math.random()*5;continue}
+    const step=Math.min(d,n.sp*dt);n.x+=dx/d*step;n.z+=dz/d*step;let ty=Math.atan2(-dx,-dz),dy=ty-n.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));n.yaw+=dy*Math.min(1,dt*7);
+    n.ph+=dt*n.sp*4.4;const sn=Math.sin(n.ph);u.legL.rotation.x=sn*.42;u.legR.rotation.x=-sn*.42;u.legL.userData.knee.rotation.x=-Math.max(0,Math.sin(n.ph+1.6))*.75;u.legR.userData.knee.rotation.x=-Math.max(0,Math.sin(n.ph+1.6+Math.PI))*.75;
+    u.armL.rotation.x=-sn*.38;u.armR.rotation.x=n.bag?.15:sn*.38;u.head.rotation.y*=.95;n.g.position.set(n.x,(.95+Math.abs(Math.cos(n.ph))*.025)*n.sc,n.z);n.g.rotation.y=n.yaw}}
+function gateBlocked(lx,lz){if(lx<-158||lx>158||lz<-89.5||lz>128)return true;if(lx>-55.6&&lx<55.6&&lz>-88.6&&lz<-61.6){if(lz>-62.45&&Math.abs(lx)>3.3)return true;if(lz<-87.5||lx<-54.7||lx>54.7)return true;
+  for(const b of GATE.grp.userData.ob)if(lx>b[0]-.3&&lx<b[1]+.3&&lz>b[2]-.3&&lz<b[3]+.3)return true}return false}
+function sitAt(s2){GATE.sit=s2;GATE.prev=eye.clone();yaw=s2.yaw;pitch=-.04;GATE.sitEye=new THREE.Vector3(GATE.A.x+s2.lx-Math.sin(s2.yaw)*.05,GATE.A.y+1.18,GATE.A.z+s2.lz-Math.cos(s2.yaw)*.05)}
+function standUp(){eye.copy(GATE.prev);GATE.sit=null}
+
 function goToGate(first){$('crash').style.display='none';const name=RW.on?'LAKE TAHOE AIRPORT':'PINECREST AIRPORT';
   if(!GATE.grp||GATE.name!==name){if(GATE.grp)scene.remove(GATE.grp);GATE.grp=buildGate(name);GATE.name=name}
   GATE.A.copy(gateSpot());parkPlane();STAIRS.visible=true;resetStory();
   st='gate';GATE.reboard=false;document.body.classList.remove('flying');['fhud','mini','loc','help','warn'].forEach(id=>$(id).style.display='none');document.querySelectorAll('.fly-only').forEach(b=>b.style.display='none');
-  eye.set(GATE.A.x+6,GATE.A.y+1.7,GATE.A.z-58);yaw=Math.PI-.35;pitch=-.05;view='cockpit';
-  if(first){banner(name,'Pinecrest Air flight 22 is now boarding',3.2);objective('Your flight is boarding! Walk out to the plane and climb the stairs.')}
+  GATE.sit=null;eye.set(GATE.A.x-36,GATE.A.y+1.7,GATE.A.z-75.5);yaw=-Math.PI/2;pitch=-.05;view='cockpit';
+  if(first){banner(name,'Pinecrest Air flight 22 is boarding at Gate 3',3.2);objective('Look around the terminal — grab a coffee, sit down — then head out the glass doors to your plane and climb the stairs.')}
   else{banner(name,'You walked away from the crash. Time to fly again!',3.2);objective('You crashed — but you\'re okay! Walk out to the plane and climb the stairs.')}if(!TOUCH)lockPtr()}
 // the real world can finish loading while you're at the airport: carry the whole airport (and you) over to the real one
 function relocateGate(){if(F.mode!=='parked'||!GATE.grp)return;const name='LAKE TAHOE AIRPORT';if(GATE.name!==name){scene.remove(GATE.grp);GATE.grp=buildGate(name);GATE.name=name}
-  const old=GATE.A.clone();GATE.A.copy(gateSpot());parkPlane();STAIRS.visible=st==='gate';if(st==='gate')eye.add(GATE.A.clone().sub(old))}
-function gateWalk(dt){let mx=0,mz=0;if(keys.KeyW||keys.ArrowUp)mz+=1;if(keys.KeyS||keys.ArrowDown)mz-=1;if(keys.KeyA)mx-=1;if(keys.KeyD)mx+=1;if(keys.ArrowLeft)yaw+=dt*1.8;if(keys.ArrowRight)yaw-=dt*1.8;
+  const old=GATE.A.clone();GATE.A.copy(gateSpot());parkPlane();if(GATE.sit)standUp();STAIRS.visible=st==='gate';if(st==='gate')eye.add(GATE.A.clone().sub(old))}
+function gateWalk(dt){if(GATE.sit){eye.copy(GATE.sitEye);return}let mx=0,mz=0;if(keys.KeyW||keys.ArrowUp)mz+=1;if(keys.KeyS||keys.ArrowDown)mz-=1;if(keys.KeyA)mx-=1;if(keys.KeyD)mx+=1;if(keys.ArrowLeft)yaw+=dt*1.8;if(keys.ArrowRight)yaw-=dt*1.8;
   if(TOUCH){mx+=stick.x;mz-=stick.y}const l=Math.hypot(mx,mz);if(l>1){mx/=l;mz/=l}const sp=(keys.ShiftLeft||keys.ShiftRight?6:3.2)*dt,fx=-Math.sin(yaw),fz=-Math.cos(yaw),rx=Math.cos(yaw),rz=-Math.sin(yaw);
-  eye.x=clamp(eye.x+(fx*mz+rx*mx)*sp,GATE.A.x-155,GATE.A.x+155);eye.z=clamp(eye.z+(fz*mz+rz*mx)*sp,GATE.A.z-60,GATE.A.z+125);
+  let lx=eye.x-GATE.A.x,lz=eye.z-GATE.A.z;const dx=(fx*mz+rx*mx)*sp,dz=(fz*mz+rz*mx)*sp;if(!gateBlocked(lx+dx,lz))lx+=dx;if(!gateBlocked(lx,lz+dz))lz+=dz;eye.x=GATE.A.x+lx;eye.z=GATE.A.z+lz;
   eye.y=GATE.A.y+1.7+(l>.1?Math.sin(performance.now()/150)*.03:0)}
 function boardAgain(){st='walk';boarding=true;setInside(true);eye.set(-.2,.72,-8.3);yaw=Math.PI;pitch=-.05;
   objective('Find your seat — row 13, aisle seat on the left as you walk back — and sit down.');banner('Welcome aboard','Please take your seat',2.2);ding();say('Welcome aboard, folks!',2.2)}
@@ -985,6 +1063,7 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last
   {const fl=st==='fly'&&F.mode!=='crashed',c=F.ctl;SURF.ail.forEach(([sx,pv])=>pv.rotation.x=fl?-sx*c.r*.35:0);SURF.elev.forEach(pv=>pv.rotation.x=fl?-c.p*.4:0);SURF.rud.rotation.y=fl?c.y*.4:0;SURF.flap.forEach(pv=>pv.rotation.x=F.gearT*.42)}
   if(st==='rising'||st==='sitting'){anim.t+=dt;const k=sstep(0,1,anim.t/anim.d);eye.lerpVectors(anim.from,anim.to,k);if(yawTo!==null){yaw+=(yawTo-yaw)*Math.min(1,dt*4);pitch*=1-Math.min(1,dt*4)}if(anim.t>=anim.d){const d=anim.done;anim=null;yawTo=null;d()}}
   if(st==='walk')walk(dt);else if(st==='gate')gateWalk(dt);
+  peopleTick(dt,t);
   if(doorOpen)doorT=Math.min(1,doorT+dt*4);DOOR.rotation.y=sstep(0,1,doorT)*1.7;
   winT=clamp(winT+(winOpen?dt*2.5:-dt*2),0,1);WIN_PANE.position.z=-10.9+winT*.95;
   setInside(st!=='throwing'&&st!=='gate'&&!(st==='fly'&&view==='chase'));
@@ -997,7 +1076,8 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last
   if(waterPre)water.material.uniforms.time.value+=dt*.5;else{waterNorm.offset.x+=dt*.0012;waterNorm.offset.y+=dt*.0007}
   tmpV.set(1,0,0).applyQuaternion(camera.quaternion);tmpV2.set(0,1,0).applyQuaternion(camera.quaternion);const cr=Math.atan2(-tmpV.y,tmpV2.y);for(const m of CLOUD_M)m.rotation=cr;
   if(SKYDOME)SKYDOME.position.copy(camera.position);
-  sunL.target.position.copy(P.position);sunL.position.copy(P.position).addScaledVector(SUN,2000);sunL.target.updateMatrixWorld();
+  {const onFoot=st==='gate',c=sunL.shadow.camera,ext=onFoot?42:24;if(c.right!==ext){c.left=c.bottom=-ext;c.right=c.top=ext;c.updateProjectionMatrix()}
+    sunL.target.position.copy(onFoot?eye:P.position);sunL.position.copy(sunL.target.position).addScaledVector(SUN,2000);sunL.target.updateMatrixWorld()}
   audioTick();
   if(RW.tiles)RW.tick(dt);
   if(waterPre&&water.visible)waterPre();renderer.shadowMap.needsUpdate=true;composer.render()}
@@ -1005,7 +1085,7 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight)});
 $('again').onclick=respawn;
 $('go').onclick=()=>{initAudio();$('menu').style.display='none';if(TOUCH){$('touch').style.display='block';try{document.documentElement.requestFullscreen?.().catch(()=>{})}catch(e){}}$('obj').style.display='block';goToGate(true);setTimeout(ding,600)};
-window.__g=()=>({st,pil,eye:eye.toArray(),mode:F.mode,y:P.position.y,prompt:(currentAction()||{}).t});window.__t={eye,act:()=>act(),look:(y,p)=>{yaw=y;pitch=p},P,F,fly:()=>startFlying(),view:v=>{view=v},orb,scene,water,groundH,crash:m=>crash(m),gate:()=>goToGate(),G:GATE};
+window.__g=()=>({st,pil,eye:eye.toArray(),mode:F.mode,y:P.position.y,prompt:(currentAction()||{}).t});window.__t={eye,act:()=>act(),look:(y,p)=>{yaw=y;pitch=p},P,F,fly:()=>startFlying(),view:v=>{view=v},orb,scene,water,groundH,crash:m=>crash(m),gate:()=>goToGate(),G:GATE,sit:i=>sitAt(GATE.grp.userData.seats[i])};
 buildMap();setInside(true);autopilot(0);
 $('load').style.display='none';
 requestAnimationFrame(frame);
