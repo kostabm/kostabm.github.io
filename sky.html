@@ -95,7 +95,7 @@ body.touch #crash button{font-size:20px}#rot{position:fixed;left:50%;top:58%;tra
 <div id="help"><b>W</b><b>S</b>nose down / up<br><b>A</b><b>D</b>roll · <b>Q</b><b>E</b>rudder<br><b>Shift</b><b>Z</b>throttle up / down<br><b>G</b>landing gear · <b>B</b>brakes<br><b>C</b>switch camera · <b>I</b>invert up/down<br><b>H</b>hide this help</div>
 <div id="attrib" style="display:none;position:fixed;left:8px;bottom:4px;z-index:3;max-width:60vw;font:11px/1.3 system-ui,sans-serif;color:#fff;text-shadow:0 1px 2px #000;pointer-events:none"></div>
 <div id="rot">📱↻ Turn your phone sideways for the best view</div>
-<div id="crash"><h2>💥 CRASHED</h2><p id="cmsg"></p><button id="again">Fly again (R)</button></div>
+<div id="crash"><h2>💥 CRASHED</h2><p id="cmsg"></p><button id="again">🛬 Back to the airport (R)</button></div>
 <div id="touch">
   <div id="tlook"></div>
   <div id="tstick"><div id="tknob"></div></div>
@@ -313,7 +313,7 @@ const TREES={cell:400,R:LOW?5:8,cache:new Map(),key:''};
 function treeCell(ci,cj){const k=ci+','+cj;let a=TREES.cache.get(k);if(a)return a;
   let sd=((hash(ci+7,cj-3)*2147483645)|0)+1;const r=()=>{sd=(sd*16807)%2147483647;return (sd-1)/2147483646};
   const out=[],ro=[],m=new THREE.Matrix4(),q=new THREE.Quaternion(),s=new THREE.Vector3(),p=new THREE.Vector3(),c=new THREE.Color(),UP=new THREE.Vector3(0,1,0),C=TREES.cell;
-  const inTown=(x,z)=>Math.hypot(x-TOWN.x,z-TOWN.z)<TOWN.r+150||(Math.abs(x-RWY.x)<260&&Math.abs(z-RWY.z)<RWY.len/2+400);
+  const inTown=(x,z)=>Math.hypot(x-TOWN.x,z-TOWN.z)<TOWN.r+150||(Math.abs(x-RWY.x)<480&&Math.abs(z-RWY.z)<RWY.len/2+400);
   for(let i=0;i<(LOW?380:560);i++){const x=ci*C+r()*C,z=cj*C+r()*C,h=groundH(x,z);if(h<4){r();continue}const f=forestMask(x,z,h),edge=r();const lone=edge<.014&&h<1250;if(edge>f*1.15&&!lone)continue;
     if(inTown(x,z))continue;const sx=Math.abs(groundH(x+5,z)-groundH(x-5,z)),sz=Math.abs(groundH(x,z+5)-groundH(x,z-5));if(sx>7||sz>7)continue;
     const leafy=lone||(h<1000&&r()<.15+.6*sstep(.45,.75,vnoise(x/1100+9,z/1100))*sstep(1000,600,h));
@@ -409,7 +409,7 @@ function treeUpdate(){const T=TREES,cp=camera.position,ci=Math.floor(cp.x/T.cell
 {// airport
   const t=canvasTex(128,2048,(g,w,h)=>{g.fillStyle='#34373b';g.fillRect(0,0,w,h);for(let i=0;i<3000;i++){g.fillStyle=`rgba(${rnd()<.5?0:255},${rnd()<.5?0:255},255,.04)`;g.fillRect(rnd()*w,rnd()*h,2,2)}
     g.fillStyle='#eef';g.fillRect(4,0,3,h);g.fillRect(w-7,0,3,h);for(let y=150;y<h-150;y+=48)g.fillRect(w/2-1.5,y,3,26);
-    for(let i=0;i<8;i++){g.fillRect(12+i*13.5,10,7,60);g.fillRect(12+i*13.5,h-70,7,60)}
+    for(let i=0;i<8;i++){g.fillRect(12+i*13.5,8,7,21);g.fillRect(12+i*13.5,h-29,7,21)}
     g.font='bold 52px system-ui';g.textAlign='center';g.fillText('36',w/2,h-90);g.save();g.translate(w/2,90);g.rotate(Math.PI);g.fillText('18',0,0);g.restore();
     g.fillRect(w/2-22,300,10,70);g.fillRect(w/2+12,300,10,70);g.fillRect(w/2-22,h-370,10,70);g.fillRect(w/2+12,h-370,10,70)});
   const rw=new THREE.Mesh(new THREE.PlaneGeometry(RWY.w,RWY.len),new THREE.MeshStandardMaterial({map:t,roughness:.9,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));rw.rotation.x=-Math.PI/2;rw.position.set(RWY.x,RWY.h+.12,RWY.z);scene.add(rw);
@@ -681,11 +681,12 @@ function audioTick(){if(!AC)return;
     at(A.eLP.frequency,ins?220+th*500:300+th*1600);at(A.eG.gain,(ins?.35:.25)+th*.45);at(A.hG.gain,.05+th*.06);at(A.hum.frequency,50+th*30);at(A.whG.gain,ins?.005+th*.01:.015+th*.035);at(A.wh.frequency,600+th*1100);at(A.wG.gain,(ins?.04:.12)+sp*(ins?.15:.45));at(A.wBP.frequency,500+sp*1400)}
   else if(st==='fly'){at(A.eG.gain,0,.3);at(A.hG.gain,0,.3);at(A.whG.gain,0,.3);at(A.wG.gain,0,.3)}
   else if(st==='throwing'){at(A.eLP.frequency,900);at(A.eG.gain,.5);at(A.wG.gain,.5);at(A.whG.gain,.03);at(A.hG.gain,.05)}
+  else if(st==='gate'){at(A.eLP.frequency,320);at(A.eG.gain,.12);at(A.hG.gain,.02);at(A.whG.gain,.006);at(A.wG.gain,.05);at(A.wBP.frequency,600)}
   else{const w=winOpen?.75:.035;at(A.eLP.frequency,winOpen?900:230);at(A.eG.gain,.5);at(A.hG.gain,.045);at(A.whG.gain,.004);at(A.wG.gain,w);at(A.wBP.frequency,winOpen?1100:500)}}
 
 // ================= input =================
 addEventListener('keydown',e=>{const k=e.code;keys[k]=true;if(st==='menu')return;
-  if(k==='KeyE'&&st!=='fly')act();
+  if(k==='KeyE'&&st!=='fly')act();if(k==='KeyR'&&st==='fly'&&F.mode==='crashed')goToGate();
   if(st==='fly'){if(k==='KeyC')toggleView();if(k==='KeyG')toggleGear();if(k==='KeyI'){invert=!invert;store.set('sky.inv',invert?'1':'0');banner(invert?'Controls inverted':'Normal controls','W = '+(invert?'nose up':'nose down'),1.6)}
     if(k==='KeyH'){const h=$('help');h.style.display=h.style.display==='none'?'block':'none'}if(k==='KeyR'&&F.mode==='crashed')respawn()}
   if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(k))e.preventDefault()});
@@ -699,7 +700,7 @@ addEventListener('mousemove',e=>{let dx=0,dy=0;if(document.pointerLockElement===
 function look(dx,dy){const s=.0024;if(st==='fly'&&view==='chase'){orb.y-=dx*s;orb.p=clamp(orb.p-dy*s,-1.2,.6);orb.t=2.2}else{yaw-=dx*s;pitch=clamp(pitch-dy*s,-1.4,1.4)}}
 // touch
 const stick={x:0,y:0,id:null,ox:0,oy:0},lk={id:null,x:0,y:0},btn={up:false,dn:false};
-if(TOUCH){document.body.classList.add('touch');$('again').textContent='Fly again';const ts=$('tstick'),kn=$('tknob');
+if(TOUCH){document.body.classList.add('touch');$('again').textContent='🛬 Back to the airport';const ts=$('tstick'),kn=$('tknob');
   ts.addEventListener('touchstart',e=>{e.preventDefault();const t=e.changedTouches[0];stick.id=t.identifier;const r=ts.getBoundingClientRect();stick.ox=r.left+r.width/2;stick.oy=r.top+r.height/2;mv(t)},{passive:false});
   const mv=t=>{const dx=clamp((t.clientX-stick.ox)/55,-1,1),dy=clamp((t.clientY-stick.oy)/55,-1,1);stick.x=dx;stick.y=dy;kn.style.transform=`translate(${dx*42}px,${dy*42}px)`};
   addEventListener('touchmove',e=>{for(const t of e.changedTouches){if(t.identifier===stick.id)mv(t);if(t.identifier===lk.id){look((t.clientX-lk.x)*1.6,(t.clientY-lk.y)*1.6);lk.x=t.clientX;lk.y=t.clientY}}},{passive:false});
@@ -713,6 +714,7 @@ if(TOUCH){document.body.classList.add('touch');$('again').textContent='Fly again
 let anim=null;// {t,d,from,to,done}
 function act(){const a=currentAction();if(a)a.fn()}
 function currentAction(){
+  if(st==='gate')return Math.hypot(eye.x-GATE.foot.x,eye.z-GATE.foot.z)<3.2?{t:'Climb aboard',fn:boardAgain}:null;
   if(st==='seated')return {t:'Get out of your seat',fn:()=>{st='rising';anim={t:0,d:.8,from:eye.clone(),to:new THREE.Vector3(0,.72,PLAYER_SEAT.z),done:()=>{st='walk';objective('Walk to the front of the plane — the cockpit door.')}}}};
   if(st!=='walk')return null;const x=eye.x,z=eye.z,d=(a,b)=>Math.hypot(x-a,z-b);
   if(!doorOpen&&z<-7.4&&Math.abs(x)<.7)return {t:'Kick open the cockpit door',fn:()=>{doorOpen=1;noiseHit(.35,900,80,.9);tone(70,0,.3,'sine',.5,40);shake=.4;objective('Grab the pilot!');setTimeout(()=>{if(pil==='seated')say('Hey! Passengers can\'t be in here!',2.6)},500)}};
@@ -729,11 +731,57 @@ function throwPilot(){winOpen=true;say('NO NO NO NO NO!',1.2);noiseHit(.6,3000,6
     st='throwing';setInside(false);scream();say('AAAAAAAHHHH!',2.4);document.exitPointerLock?.();
     camera.position.copy(P.localToWorld(tmpV.set(-16,3,-4)));objective('Bye bye, captain!')},450)}
 function startFlying(){document.body.classList.add('flying');st='fly';F.mode='air';F.speed=AP.speed;F.thr=.55;F.gear=0;F.gearT=0;view='cockpit';yaw=0;pitch=-.08;winOpen=false;
-  banner('YOU HAVE CONTROL','Fly anywhere you want!',3.5);objective(RW.on?'Fly anywhere! Try landing at Lake Tahoe Airport, south of the lake — or on the water.':'Fly anywhere! Try landing at Pinecrest Airport, south of the lake — or on the water.');ding();
+  if(GATE.reboard){GATE.reboard=false;if(RW.on){P.position.set(GATE.A.x,GATE.A.y+380,GATE.A.z-300);P.quaternion.setFromEuler(EUL.set(.09,0,0));F.speed=125;F.thr=.75;banner('AIRBORNE!','Climbing out of Lake Tahoe Airport — the lake is ahead',3.5)}
+    else{P.position.set(RWY.x,RWY.h+3.4,RWY.z+RWY.len/2-60);P.quaternion.setFromEuler(EUL.set(0,0,0));F.mode='ground';F.speed=0;F.thr=0;F.gear=1;F.gearT=1;F.rot=0;banner('CLEARED FOR TAKEOFF',TOUCH?'Hold ＋ for full throttle, then pull the stick back at 120 knots':'Hold Shift for full throttle, then press S at 120 knots',5)}chaseQ.copy(P.quaternion)}
+  else banner('YOU HAVE CONTROL','Fly anywhere you want!',3.5);objective(RW.on?'Fly anywhere! Try landing at Lake Tahoe Airport, south of the lake — or on the water.':'Fly anywhere! Try landing at Pinecrest Airport, south of the lake — or on the water.');ding();
   $('fhud').style.display='flex';$('mini').style.display='block';$('loc').style.display='block';if(!TOUCH)$('help').style.display='block';document.querySelectorAll('.fly-only').forEach(b=>b.style.display='block');
   setTimeout(()=>{if(st==='fly'&&view==='cockpit')banner('Press C','to see the plane from outside',2.5)},4200)}
 function toggleView(){if(st!=='fly')return;view=view==='chase'?'cockpit':'chase';yaw=0;pitch=-.08;orb={y:0,p:0,t:0};chaseQ.copy(P.quaternion)}
 function toggleGear(){if(st!=='fly')return;if(F.mode==='ground'&&F.gear)return banner('Not on the ground!','',1.2);F.gear=F.gear?0:1;tone(180,0,.8,'sawtooth',.05,120)}
+
+
+// ================= after a crash: back at the airport, walk out to a fresh plane and climb aboard =================
+const GATE={grp:null,A:new THREE.Vector3(),foot:new THREE.Vector3(),reboard:false};
+const STAIRS=new THREE.Group();{const w=LM(0xf2f2ee,.25,{roughness:.6}),d=LM(0x5a5e66,.2,{roughness:.8}),y0=-3.4,y1=-.95,x0=-6.6,x1=-2.15,n=12;
+  for(let i=0;i<n;i++){const t=i/(n-1),st=new THREE.Mesh(new THREE.BoxGeometry(.4,.07,1.3),d);st.position.set(lerp(x0,x1,t),lerp(y0+.2,y1,t),0);STAIRS.add(st)}
+  const len=Math.hypot(x1-x0,y1-y0),ang=Math.atan2(y1-y0,x1-x0);[-.68,.68].forEach(z=>{const side=new THREE.Mesh(new THREE.BoxGeometry(len,.32,.06),w);side.position.set((x0+x1)/2,(y0+y1)/2,z);side.rotation.z=ang;STAIRS.add(side);
+    const rail=new THREE.Mesh(new THREE.CylinderGeometry(.03,.03,len,6).rotateZ(Math.PI/2),w);rail.position.set((x0+x1)/2,(y0+y1)/2+1,z);rail.rotation.z=ang;STAIRS.add(rail);
+    [0,.5,1].forEach(t=>{const post=new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,1,6),w);post.position.set(lerp(x0,x1,t),lerp(y0,y1,t)+.6,z);STAIRS.add(post)})});
+  const truck=new THREE.Mesh(new RoundedBoxGeometry(5.2,1.1,2,2,.15),LM(0xe9e5d8,.25,{roughness:.5}));truck.position.set(-4.6,y0+.55,0);STAIRS.add(truck);
+  [[-6.6,.85],[-6.6,-.85],[-2.8,.85],[-2.8,-.85]].forEach(([x,z])=>{const wh=new THREE.Mesh(new THREE.CylinderGeometry(.38,.38,.3,14).rotateX(Math.PI/2),LM(0x151515,.1));wh.position.set(x,y0+.38,z);STAIRS.add(wh)});
+  STAIRS.position.z=-8.4;STAIRS.visible=false;P.add(STAIRS)}
+function buildGate(name){const g=new THREE.Group();
+  const conc=canvasTex(256,256,(c,w,h)=>{c.fillStyle='#a7a49d';c.fillRect(0,0,w,h);for(let i=0;i<6000;i++){const v=140+rnd()*60|0;c.fillStyle=`rgba(${v},${v},${v-6},.35)`;c.fillRect(rnd()*w,rnd()*h,2,2)}c.fillStyle='rgba(40,40,40,.35)';c.fillRect(0,0,w,3);c.fillRect(0,0,3,h);
+    for(let i=0;i<5;i++){c.fillStyle='rgba(30,30,30,.12)';c.beginPath();c.ellipse(rnd()*w,rnd()*h,20+rnd()*40,8+rnd()*20,rnd()*3,0,7);c.fill()}});conc.wrapS=conc.wrapT=THREE.RepeatWrapping;conc.repeat.set(320/7.5,220/7.5);
+  const slab=new THREE.Mesh(new THREE.PlaneGeometry(320,220).rotateX(-Math.PI/2),new THREE.MeshStandardMaterial({map:conc,roughness:.95,polygonOffset:true,polygonOffsetFactor:-6,polygonOffsetUnits:-6}));slab.position.set(0,.06,20);slab.receiveShadow=true;g.add(slab);
+  const yel=new THREE.MeshBasicMaterial({color:0xd9b32e});[[0,40,.35,90],[-30,20,60,.35]].forEach(([x,z,w,d])=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d).rotateX(-Math.PI/2),yel);m.position.set(x,.09,z);g.add(m)});
+  const glass=canvasTex(512,256,(c,w,h)=>{const gr=c.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#9fb6c9');gr.addColorStop(.5,'#4f6577');gr.addColorStop(1,'#26323d');c.fillStyle=gr;c.fillRect(0,0,w,h);
+    c.fillStyle='rgba(255,255,255,.12)';for(let i=0;i<6;i++){c.beginPath();c.moveTo(rnd()*w,0);c.lineTo(rnd()*w+60,h);c.lineTo(rnd()*w+90,h);c.fill()}c.fillStyle='#c9ccd0';for(let x=0;x<w;x+=32)c.fillRect(x,0,4,h);c.fillRect(0,h/2-2,w,4);c.fillRect(0,0,w,6)});glass.wrapS=THREE.RepeatWrapping;glass.repeat.set(6,1);
+  const wall=LM(0xd9d6cf,.25,{roughness:.8}),term=new THREE.Mesh(new THREE.BoxGeometry(110,13,26),[wall,wall,LM(0x8a8d92,.2),wall,new THREE.MeshStandardMaterial({map:glass,roughness:.12,metalness:.4}),wall]);term.position.set(0,6.5,-75);term.castShadow=term.receiveShadow=true;g.add(term);
+  const roof=new THREE.Mesh(new THREE.BoxGeometry(116,1,32),LM(0xe8e6e0,.25));roof.position.set(0,13.4,-73);g.add(roof);
+  const sign=canvasTex(1024,128,(c,w,h)=>{c.fillStyle='#14294a';c.fillRect(0,0,w,h);c.fillStyle='#fff';c.font='bold 78px system-ui,sans-serif';c.textAlign='center';c.fillText(name,w/2,92)});
+  const sg=new THREE.Mesh(new THREE.PlaneGeometry(40,5),new THREE.MeshStandardMaterial({map:sign,roughness:.5,emissive:0xffffff,emissiveMap:sign,emissiveIntensity:.25}));sg.position.set(0,10.5,-61.9);g.add(sg);
+  const doors=new THREE.Mesh(new THREE.PlaneGeometry(8,3.2),new THREE.MeshStandardMaterial({color:0x2a3540,roughness:.1,metalness:.5}));doors.position.set(0,1.6,-61.95);g.add(doors);
+  const pole=LM(0x9a9da2,.2);[-120,-40,40,120].forEach(x=>{const p=new THREE.Mesh(new THREE.CylinderGeometry(.18,.25,18,8),pole);p.position.set(x,9,100);g.add(p);const l=new THREE.Mesh(new THREE.BoxGeometry(3,.5,1),pole);l.position.set(x,18,99.5);g.add(l)});
+  const cone=LM(0xff6a1a,.3);[[-12,30],[-14,34],[12,46],[16,46]].forEach(([x,z])=>{const c=new THREE.Mesh(new THREE.ConeGeometry(.22,.75,12),cone);c.position.set(x,.38,z);g.add(c)});
+  scene.add(g);return g}
+function goToGate(){$('crash').style.display='none';const name=RW.on?'LAKE TAHOE AIRPORT':'PINECREST AIRPORT';
+  if(!GATE.grp||GATE.name!==name){if(GATE.grp)scene.remove(GATE.grp);GATE.grp=buildGate(name);GATE.name=name}
+  if(RW.on){const [x,z]=ll2xz(38.8928,-119.9978),e=demElev(x,z);GATE.A.set(x,(e===null?0:e)+1.2,z)}else GATE.A.set(RWY.x+230,RWY.h,RWY.z+700);
+  GATE.grp.position.copy(GATE.A);GATE.grp.visible=true;
+  P.visible=true;P.position.set(GATE.A.x,GATE.A.y+3.4,GATE.A.z+40);P.quaternion.setFromEuler(EUL.set(0,-Math.PI/2,0));F.mode='parked';F.speed=0;F.thr=0;F.gear=1;F.gearT=1;F.ctl.p=F.ctl.r=F.ctl.y=0;GEAR.visible=true;GEAR.scale.y=1;STAIRS.visible=true;
+  P.updateMatrixWorld(true);GATE.foot.copy(P.localToWorld(new THREE.Vector3(-7.4,-3.4,-8.4)));
+  st='gate';GATE.reboard=true;document.body.classList.remove('flying');['fhud','mini','loc','help','warn'].forEach(id=>$(id).style.display='none');document.querySelectorAll('.fly-only').forEach(b=>b.style.display='none');
+  eye.set(GATE.A.x+6,GATE.A.y+1.7,GATE.A.z-58);yaw=Math.PI-.35;pitch=-.05;view='cockpit';
+  if(pil==='seated'||pil==='carried'||pil==='windup'){pil='gone';pilot.visible=false}else pilot.visible=pil==='gone'&&pilot.position.distanceTo(GATE.A)<4000;
+  banner(name,'You walked away from the crash. Your next plane is waiting.',3.2);objective('You crashed — but you\'re okay! Walk out to the plane and climb the stairs.');if(!TOUCH)lockPtr()}
+function gateWalk(dt){let mx=0,mz=0;if(keys.KeyW||keys.ArrowUp)mz+=1;if(keys.KeyS||keys.ArrowDown)mz-=1;if(keys.KeyA)mx-=1;if(keys.KeyD)mx+=1;if(keys.ArrowLeft)yaw+=dt*1.8;if(keys.ArrowRight)yaw-=dt*1.8;
+  if(TOUCH){mx+=stick.x;mz-=stick.y}const l=Math.hypot(mx,mz);if(l>1){mx/=l;mz/=l}const sp=(keys.ShiftLeft||keys.ShiftRight?6:3.2)*dt,fx=-Math.sin(yaw),fz=-Math.cos(yaw),rx=Math.cos(yaw),rz=-Math.sin(yaw);
+  eye.x=clamp(eye.x+(fx*mz+rx*mx)*sp,GATE.A.x-155,GATE.A.x+155);eye.z=clamp(eye.z+(fz*mz+rz*mx)*sp,GATE.A.z-60,GATE.A.z+125);
+  eye.y=GATE.A.y+1.7+(l>.1?Math.sin(performance.now()/150)*.03:0)}
+function boardAgain(){st='walk';STAIRS.visible=false;setInside(true);eye.set(-.2,.72,-8.3);yaw=0;pitch=0;doorOpen=1;doorT=1;winOpen=false;
+  objective('Take the captain\'s seat and get this plane back in the air!');banner('Welcome aboard','Head to the cockpit',2);ding()}
+function respawn(){goToGate()}
 
 // ================= flight =================
 const STALL=58;
@@ -782,7 +830,7 @@ function flyGround(dt){const wet=F.mode==='water';axes();let hd=Math.atan2(-fwd.
 function crash(msg){F.mode='crashed';P.visible=false;explode(P.position.clone());shake=1.4;$('cmsg').textContent=msg;setTimeout(()=>{if(F.mode==='crashed'){$('crash').style.display='flex';document.exitPointerLock?.()}},1400);
   noiseHit(2.5,3000,60,1);tone(60,0,1.5,'sine',.7,30);crashCam.copy(camera.position);if(view==='cockpit'){crashCam.copy(P.position).add(tmpV.set(0,30,0)).addScaledVector(fwd,-120)}}
 const crashCam=new THREE.Vector3();
-function respawn(){$('crash').style.display='none';P.visible=true;P.position.set(0,1150,8500);P.quaternion.setFromEuler(EUL.set(0,0,0));F.speed=130;F.thr=.6;F.gear=0;F.gearT=0;F.mode='air';chaseQ.copy(P.quaternion);
+function respawnAir(){$('crash').style.display='none';P.visible=true;P.position.set(0,1150,8500);P.quaternion.setFromEuler(EUL.set(0,0,0));F.speed=130;F.thr=.6;F.gear=0;F.gearT=0;F.mode='air';chaseQ.copy(P.quaternion);
   banner('Back in the sky','Try not to crash this time 😅',2.2);if(!TOUCH)lockPtr()}
 // explosions
 const fireT=canvasTex(64,64,(g,w,h)=>{const r=g.createRadialGradient(32,32,0,32,32,32);r.addColorStop(0,'rgba(255,240,200,1)');r.addColorStop(.35,'rgba(255,150,40,.9)');r.addColorStop(1,'rgba(120,20,0,0)');g.fillStyle=r;g.fillRect(0,0,w,h)});
@@ -874,6 +922,7 @@ function pilotTick(dt,t){const u=pilot.userData;
     const g=sH(pilot.position.x,pilot.position.z);if(pilot.position.y<g+.4){const wet=wetAt(pilot.position.x,pilot.position.z);pilot.position.y=g+.4;pil='gone';splash(pilot.position.clone(),wet);if(wet)pilot.visible=false;else pilot.rotation.set(-Math.PI/2,pilot.rotation.y,0)}}}
 const camQ=new THREE.Quaternion();
 function cameraTick(dt,t){
+  if(st==='gate'){camera.position.copy(eye);camera.quaternion.setFromEuler(EUL.set(pitch,yaw,0));return}
   if(st==='throwing'){thr.ct=(thr.ct||0)+dt;
     if(thr.ct<1.1){P.updateMatrixWorld(true);P.localToWorld(tmpV.set(-17,3.5,-6));camera.position.copy(tmpV)}
     else{tmpV.copy(pilot.position).add(tmpV2.set(-16,7,16));camera.position.lerp(tmpV,1-Math.exp(-dt*2.2))}
@@ -918,17 +967,17 @@ function bubbleTick(dt){const b=$('bubble');if(bubT<=0){b.style.display='none';r
 
 let last=performance.now(),pfdN=0;
 function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last)/1000);last=now;const t=now/1000;
-  if(st==='fly'){flyInput(dt);if(F.mode==='air')flyAir(dt);else if(F.mode==='ground'||F.mode==='water')flyGround(dt)}else autopilot(dt);
+  if(st==='fly'){flyInput(dt);if(F.mode==='air')flyAir(dt);else if(F.mode==='ground'||F.mode==='water')flyGround(dt)}else if(F.mode!=='parked'||st==='seated'||st==='menu')autopilot(dt);
   BEACON.visible=(t%1.2)<.12;{const ph=t%1.3;STROBES.forEach(s=>s.visible=ph<.06||(ph>.16&&ph<.21))}
   {const fl=st==='fly'&&F.mode!=='crashed',c=F.ctl;SURF.ail.forEach(([sx,pv])=>pv.rotation.x=fl?-sx*c.r*.35:0);SURF.elev.forEach(pv=>pv.rotation.x=fl?-c.p*.4:0);SURF.rud.rotation.y=fl?c.y*.4:0;SURF.flap.forEach(pv=>pv.rotation.x=F.gearT*.42)}
   if(st==='rising'||st==='sitting'){anim.t+=dt;const k=sstep(0,1,anim.t/anim.d);eye.lerpVectors(anim.from,anim.to,k);if(yawTo!==null){yaw+=(yawTo-yaw)*Math.min(1,dt*4);pitch*=1-Math.min(1,dt*4)}if(anim.t>=anim.d){const d=anim.done;anim=null;yawTo=null;d()}}
-  if(st==='walk')walk(dt);
+  if(st==='walk')walk(dt);else if(st==='gate')gateWalk(dt);
   if(doorOpen)doorT=Math.min(1,doorT+dt*4);DOOR.rotation.y=sstep(0,1,doorT)*1.7;
   winT=clamp(winT+(winOpen?dt*2.5:-dt*2),0,1);WIN_PANE.position.z=-10.9+winT*.95;
-  setInside(st!=='throwing'&&!(st==='fly'&&view==='chase'));
+  setInside(st!=='throwing'&&st!=='gate'&&!(st==='fly'&&view==='chase'));
   pilotTick(dt,t);cameraTick(dt,t);fxTick(dt);treeUpdate();
   if(INNER.visible&&(pfdN++%2===0))drawPFD();
-  const a=st==='walk'||st==='seated'?currentAction():null;setPrompt(a?a.t:'');$('cross').style.display=(st==='walk'||st==='seated')&&!TOUCH?'block':'none';
+  const a=st==='walk'||st==='seated'||st==='gate'?currentAction():null;setPrompt(a?a.t:'');$('cross').style.display=(st==='walk'||st==='seated'||st==='gate')&&!TOUCH?'block':'none';
   if(TOUCH){const b=$('bAct'),fl=st==='fly';b.style.display=fl&&F.mode==='air'?'none':'block';b.textContent=fl?(F.mode==='crashed'?'↻':F.brk?'🛑':'B'):'✋';$('rot').style.display=fl&&innerHeight>innerWidth&&F.mode!=='crashed'?'block':'none'}
   if(st==='fly')hudTick();bubbleTick(dt);if(bannerT>0){bannerT-=dt;if(bannerT<=0)$('banner').style.opacity=0}
   for(const l of LABELS){const d=l.position.distanceTo(camera.position);l.visible=RW.on!==PROC_LABELS.includes(l)&&st==='fly'&&view==='chase'&&d>600&&d<32000}
@@ -944,7 +993,7 @@ addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updat
 $('again').onclick=respawn;
 $('go').onclick=()=>{initAudio();$('menu').style.display='none';if(TOUCH){$('touch').style.display='block';try{document.documentElement.requestFullscreen?.().catch(()=>{})}catch(e){}}$('obj').style.display='block';st='seated';setInside(true);objective('You\'re a passenger… but you want to fly this plane. Get out of your seat!');
   setTimeout(ding,600);setTimeout(()=>banner('Pinecrest Air · Flight 22',RW.on?'Cruising over Lake Tahoe':'Cruising over Silverpine Lake',3),1500);if(!TOUCH)lockPtr()};
-window.__g=()=>({st,pil,eye:eye.toArray(),mode:F.mode,y:P.position.y,prompt:(currentAction()||{}).t});window.__t={eye,act:()=>act(),look:(y,p)=>{yaw=y;pitch=p},P,F,fly:()=>startFlying(),view:v=>{view=v},orb,scene,water,groundH};
+window.__g=()=>({st,pil,eye:eye.toArray(),mode:F.mode,y:P.position.y,prompt:(currentAction()||{}).t});window.__t={eye,act:()=>act(),look:(y,p)=>{yaw=y;pitch=p},P,F,fly:()=>startFlying(),view:v=>{view=v},orb,scene,water,groundH,crash:m=>crash(m),gate:()=>goToGate(),G:GATE};
 buildMap();setInside(true);autopilot(0);
 $('load').style.display='none';
 requestAnimationFrame(frame);
