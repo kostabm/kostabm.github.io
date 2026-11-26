@@ -53,8 +53,9 @@ button{font:inherit;font-weight:800;font-size:18px;padding:12px 34px;border-radi
 <div id="load">Building the valley…</div>
 <div id="menu">
   <h1>Sky Takeover</h1>
-  <p>You're just a passenger on Pinecrest Air flight 22… but you've always wanted to fly.<br>Get out of your seat, storm the cockpit, toss the pilot out the window and take the plane anywhere you like.</p>
+  <p>You're just a passenger on Pinecrest Air flight 22 over Lake Tahoe… but you've always wanted to fly.<br>Get out of your seat, storm the cockpit, toss the pilot out the window and take the plane anywhere you like.</p>
   <button id="go">✈️ Board the plane</button>
+  <div id="rwstat" style="font-size:14px;color:#7cf5c4;min-height:18px"></div>
   <div id="keys"><b>Mouse</b> look · <b>W A S D</b> walk · <b>E</b> interact<br>Flying: <b>W</b>/<b>S</b> nose down/up · <b>A</b>/<b>D</b> roll · <b>Q</b>/<b>E</b> rudder · <b>Shift</b>/<b>Z</b> throttle · <b>G</b> gear · <b>B</b> brakes · <b>C</b> camera</div>
   <a href="./">← Kosta's Games</a>
 </div>
@@ -75,6 +76,7 @@ button{font:inherit;font-weight:800;font-size:18px;padding:12px 34px;border-radi
 <div id="loc"></div>
 <div id="warn"></div>
 <div id="help"><b>W</b><b>S</b>nose down / up<br><b>A</b><b>D</b>roll · <b>Q</b><b>E</b>rudder<br><b>Shift</b><b>Z</b>throttle up / down<br><b>G</b>landing gear · <b>B</b>brakes<br><b>C</b>switch camera · <b>I</b>invert up/down<br><b>H</b>hide this help</div>
+<div id="attrib" style="display:none;position:fixed;left:8px;bottom:4px;z-index:3;max-width:60vw;font:11px/1.3 system-ui,sans-serif;color:#fff;text-shadow:0 1px 2px #000;pointer-events:none"></div>
 <div id="crash"><h2>💥 CRASHED</h2><p id="cmsg"></p><button id="again">Fly again (R)</button></div>
 <div id="touch">
   <div id="tlook"></div>
@@ -87,7 +89,7 @@ button{font:inherit;font-weight:800;font-size:18px;padding:12px 34px;border-radi
 </div>
 
 <script type="importmap">
-{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/jsm/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/jsm/loaders/GLTFLoader":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js","three/examples/jsm/loaders/DRACOLoader":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js","three/examples/jsm/loaders/KTX2Loader":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/KTX2Loader.js"}}
 </script>
 <script type="module">
 import * as THREE from 'three';
@@ -304,7 +306,7 @@ function treeCell(ci,cj){const k=ci+','+cj;let a=TREES.cache.get(k);if(a)return 
     const want=(sl>.25?.9:0)+(h>1350?.6:0)+(h>-1&&h<3?.35:0)+.04;if(r()>want||inTown(x,z)){r();continue}const sc=.6+Math.pow(r(),2.5)*(sl>.25?5:2.5);
     q.setFromEuler(new THREE.Euler(r()*.4,r()*6.28,r()*.4));m.compose(p.set(x,h-sc*.15,z),q,s.set(sc*(.8+r()*.5),sc*(.6+r()*.5),sc*(.8+r()*.5)));const v=.8+r()*.35;c.setRGB(v,v*.97,v*.92);ro.push(...m.elements,c.r,c.g,c.b)}
   a={t:new Float32Array(out),r:new Float32Array(ro)};TREES.cache.set(k,a);if(TREES.cache.size>1500)TREES.cache.delete(TREES.cache.keys().next().value);return a}
-function treeUpdate(){const T=TREES,cp=camera.position,ci=Math.floor(cp.x/T.cell),cj=Math.floor(cp.z/T.cell),high=cp.y-surfH(cp.x,cp.z)>3200,key=ci+','+cj+(high?'h':'');
+function treeUpdate(){const T=TREES,cp=camera.position,ci=Math.floor(cp.x/T.cell),cj=Math.floor(cp.z/T.cell),high=RW.on||cp.y-surfH(cp.x,cp.z)>3200,key=ci+','+cj+(high?'h':'');
   if(key===T.key)return;T.key=key;const M=T.mesh,mi=M.instanceMatrix.array,co=M.instanceColor.array,RK=T.rocks,ri=RK.instanceMatrix.array,rc=RK.instanceColor.array,R=T.R;let n=0,nr=0;
   if(!high)for(let dj=-R;dj<=R;dj++)for(let di=-R;di<=R;di++){if(di*di+dj*dj>R*R+1)continue;const a=treeCell(ci+di,cj+dj);
     for(let o=0;o<a.t.length&&n<M.instanceMatrix.count;o+=20,n++){mi.set(a.t.subarray(o,o+16),n*16);T.aV[n]=a.t[o+16];co[n*3]=a.t[o+17];co[n*3+1]=a.t[o+18];co[n*3+2]=a.t[o+19]}
@@ -423,6 +425,8 @@ const LABELS=[];function label(text,x,y,z){const t=canvasTex(512,96,(g,w,h)=>{g.
 let PEAK={h:-1e9,x:0,z:0};for(let j=0;j<NV;j++)for(let i=0;i<NV;i++){const x=AX[i],z=AX[j];if(Math.abs(x)<22000&&Math.abs(z)<24000&&HG[j*NV+i]>PEAK.h)PEAK={h:HG[j*NV+i],x,z}}
 const PLACES=[['Silverpine Lake',0,-2000],['Pinecrest',TOWN.x,TOWN.z],['Pinecrest Airport',RWY.x,RWY.z],['Mt. Frostpeak',PEAK.x,PEAK.z],['Eagle Island',ISLES[0][0],ISLES[0][1]]];
 PLACES.forEach(([n,x,z])=>label(n,x,surfH(x,z)+(n==='Silverpine Lake'?60:260),z));
+
+const PROC_LABELS=LABELS.slice(),PROC=scene.children.filter(o=>!o.isLight&&o!==SKYDOME&&o!==sunL.target&&!(o.isSprite&&CLOUD_M.includes(o.material)));
 
 // ================= the airliner =================
 const P=new THREE.Group();scene.add(P);
@@ -707,7 +711,7 @@ function throwPilot(){winOpen=true;say('NO NO NO NO NO!',1.2);noiseHit(.6,3000,6
     st='throwing';setInside(false);scream();say('AAAAAAAHHHH!',2.4);document.exitPointerLock?.();
     camera.position.copy(P.localToWorld(tmpV.set(-16,3,-4)));objective('Bye bye, captain!')},450)}
 function startFlying(){st='fly';F.mode='air';F.speed=AP.speed;F.thr=.55;F.gear=0;F.gearT=0;view='cockpit';yaw=0;pitch=-.08;winOpen=false;
-  banner('YOU HAVE CONTROL','Fly anywhere you want!',3.5);objective('Fly anywhere! Try landing at Pinecrest Airport, south of the lake — or on the water.');ding();
+  banner('YOU HAVE CONTROL','Fly anywhere you want!',3.5);objective(RW.on?'Fly anywhere! Try landing at Lake Tahoe Airport, south of the lake — or on the water.':'Fly anywhere! Try landing at Pinecrest Airport, south of the lake — or on the water.');ding();
   $('fhud').style.display='flex';$('mini').style.display='block';$('loc').style.display='block';if(!TOUCH)$('help').style.display='block';document.querySelectorAll('.fly-only').forEach(b=>b.style.display='block');
   setTimeout(()=>{if(st==='fly'&&view==='cockpit')banner('Press C','to see the plane from outside',2.5)},4200)}
 function toggleView(){if(st!=='fly')return;view=view==='chase'?'cockpit':'chase';yaw=0;pitch=-.08;orb={y:0,p:0,t:0};chaseQ.copy(P.quaternion)}
@@ -737,25 +741,25 @@ function flyAir(dt){axes();
   const r=Math.hypot(P.position.x,P.position.z);if(r>85000){const want=Math.atan2(-P.position.x,-P.position.z),hd=Math.atan2(-fwd.x,-fwd.z);let df=want-hd;df=Math.atan2(Math.sin(df),Math.cos(df));rotWorld(AXY,Math.sign(df)*.3*dt)}
   // contact
   P.updateMatrixWorld(true);
-  for(const sx of [-15,15]){P.localToWorld(tmpV.set(sx,.2,4));if(tmpV.y<surfH(tmpV.x,tmpV.z)+.2)return crash(groundH(tmpV.x,tmpV.z)<0?'Your wing caught the water!':'Your wing hit the ground!')}
-  P.localToWorld(tmpV.set(0,0,-14.5));if(tmpV.y<surfH(tmpV.x,tmpV.z)+.3)return crash(groundH(tmpV.x,tmpV.z)<0?'Nose-dived into the lake!':'You flew into the ground!');
-  const gh=groundH(P.position.x,P.position.z),wet=gh<0,surf=Math.max(gh,0),ch=(F.gearT>.9&&!wet)?3.4:2.0;
+  for(const sx of [-15,15]){P.localToWorld(tmpV.set(sx,.2,4));if(tmpV.y<sH(tmpV.x,tmpV.z)+.2)return crash(wetAt(tmpV.x,tmpV.z)?'Your wing caught the water!':'Your wing hit the ground!')}
+  P.localToWorld(tmpV.set(0,0,-14.5));if(tmpV.y<sH(tmpV.x,tmpV.z)+.3)return crash(wetAt(tmpV.x,tmpV.z)?'Nose-dived into the lake!':'You flew into the ground!');
+  const wet=wetAt(P.position.x,P.position.z),surf=sH(P.position.x,P.position.z),ch=(F.gearT>.9&&!wet)?3.4:2.0;
   if(P.position.y-ch<surf){const vy=vel.y,pd=pa*57.3,rd=bank*57.3,ok=vy>-8&&Math.abs(rd)<16&&pd>-6&&pd<22;
     if(wet){if(ok&&F.speed<135){F.mode='water';F.rot=0;banner('SPLASHDOWN!','You landed on Silverpine Lake. Throttle up to take off again.');noiseHit(1.2,2500,200,.6)}else crash('You hit the water way too hard!')}
-    else{const s=Math.hypot(groundH(P.position.x+6,P.position.z)-groundH(P.position.x-6,P.position.z),groundH(P.position.x,P.position.z+6)-groundH(P.position.x,P.position.z-6))/12;
+    else{const s=Math.hypot(gH(P.position.x+6,P.position.z)-gH(P.position.x-6,P.position.z),gH(P.position.x,P.position.z+6)-gH(P.position.x,P.position.z-6))/12;
       if(F.gearT<.9)crash('Belly flop! Press G to lower the landing gear before landing.');else if(!ok)crash('That landing was way too hard!');else if(s>.13)crash('Too steep to land here!');
-      else{F.mode='ground';F.rot=0;const onR=Math.abs(P.position.x-RWY.x)<RWY.w/2+4&&Math.abs(P.position.z-RWY.z)<RWY.len/2;banner(onR?'PERFECT LANDING!':'YOU LANDED!',onR?'Welcome to Pinecrest Airport 🛬':'Off-airport landing… impressive!');tone(300,0,.25,'square',.06,200)}}}}
+      else{F.mode='ground';F.rot=0;const onR=!RW.on&&Math.abs(P.position.x-RWY.x)<RWY.w/2+4&&Math.abs(P.position.z-RWY.z)<RWY.len/2;banner(onR?'PERFECT LANDING!':'YOU LANDED!',onR?'Welcome to Pinecrest Airport 🛬':'Off-airport landing… impressive!');tone(300,0,.25,'square',.06,200)}}}}
 function flyGround(dt){const wet=F.mode==='water';axes();let hd=Math.atan2(-fwd.x,-fwd.z);
   const steer=F.ctl.r+F.ctl.y;hd-=steer*.5*clamp(F.speed/10,.15,1)*dt;
   const fr=wet?1+.0006*F.speed*F.speed:(F.brk?7:.35);F.speed+=(F.thr*17-.00026*1.45*F.speed*F.speed-fr)*dt;if(F.speed<0)F.speed=0;
   const fx=-Math.sin(hd),fz=-Math.cos(hd);P.position.x+=fx*F.speed*dt;P.position.z+=fz*F.speed*dt;
-  const gh=groundH(P.position.x,P.position.z);
-  if(!wet&&gh<-.5){F.mode='water';banner('SPLASH!','You rolled into the lake',2)}
-  if(wet&&gh>.6){if(F.speed>12)return crash('You ran aground!');if(F.gear){F.mode='ground'}else F.speed=0}
-  let sl=0;if(!wet){const a=groundH(P.position.x+fx*8,P.position.z+fz*8),b=groundH(P.position.x-fx*8,P.position.z-fz*8);sl=Math.atan2(a-b,16);if(Math.abs(sl)>.3&&F.speed>10)return crash('You crashed into the hillside!')}
+  const gh=sH(P.position.x,P.position.z),nowWet=wetAt(P.position.x,P.position.z);
+  if(!wet&&nowWet){F.mode='water';banner('SPLASH!','You rolled into the lake',2)}
+  if(wet&&!nowWet){if(F.speed>12)return crash('You ran aground!');if(F.gear){F.mode='ground'}else F.speed=0}
+  let sl=0;if(!wet){const a=gH(P.position.x+fx*8,P.position.z+fz*8),b=gH(P.position.x-fx*8,P.position.z-fz*8);sl=Math.atan2(a-b,16);if(Math.abs(sl)>.3&&F.speed>10)return crash('You crashed into the hillside!')}
   const lift=F.ctl.p>.2&&F.speed>52;F.rot+=((lift?.16:0)-F.rot)*Math.min(1,dt*2);
   P.quaternion.setFromEuler(EUL.set(sl+F.rot,hd,0));const t=performance.now()/1000;
-  P.position.y=(wet?0:gh)+(wet?1.45+Math.sin(t*1.3)*.15:3.4)+F.rot*6;
+  P.position.y=gh+(wet?1.45+Math.sin(t*1.3)*.15:3.4)+F.rot*6;
   if(F.rot>.1&&F.speed>62){F.mode='air';P.position.y+=1;banner('Airborne!','',1.4)}}
 function crash(msg){F.mode='crashed';P.visible=false;explode(P.position.clone());shake=1.4;$('cmsg').textContent=msg;setTimeout(()=>{if(F.mode==='crashed'){$('crash').style.display='flex';document.exitPointerLock?.()}},1400);
   noiseHit(2.5,3000,60,1);tone(60,0,1.5,'sine',.7,30);crashCam.copy(camera.position);if(view==='cockpit'){crashCam.copy(P.position).add(tmpV.set(0,30,0)).addScaledVector(fwd,-120)}}
@@ -771,6 +775,53 @@ function splash(p,wet){const t=wet?smokeT:smokeT;for(let i=0;i<(wet?60:40);i++){
   s.position.copy(p);const a=rnd()*6.28,v=new THREE.Vector3(Math.cos(a)*(2+rnd()*6),wet?6+rnd()*16:2+rnd()*5,Math.sin(a)*(2+rnd()*6));scene.add(s);FX.push({s,v,t:0,life:1.2+rnd()*1.6,fire:false,grav:wet,size:wet?2+rnd()*3:3+rnd()*4})}}
 function fxTick(dt){for(let i=FX.length-1;i>=0;i--){const f=FX[i];f.t+=dt;const k=f.t/f.life;if(k>=1){scene.remove(f.s);f.s.material.dispose();FX.splice(i,1);continue}
   if(f.grav)f.v.y-=9.81*dt;else f.v.multiplyScalar(Math.exp(-dt*1.5));if(!f.fire&&!f.grav)f.v.y+=dt*4;f.s.position.addScaledVector(f.v,dt);const sz=f.size*(.5+k*1.6);f.s.scale.set(sz,sz,1);f.s.material.opacity=(1-k)*(f.fire?1:.8)}}
+
+
+// ================= the real world: Google's photo-scanned 3D Earth (via Cesium ion, same as the drift game) =================
+const CESIUM={token:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IkU2amNWSmw1SlFHT3ktZUMiLCJqdGkiOiJmNzBhYjM0Yi1lYTIyLTRkM2YtYmFhOS05ZGZkYzEwN2M2N2EiLCJpZCI6NTU1MDcyLCJzdWIiOiJub3RoaW5nZ2cyMTM5NyIsImlzcyI6Imh0dHBzOi8vYXBpLmNlc2l1bS5jb20iLCJhdWQiOiJkcmlmdC1nYW1lIiwiaWF0IjoxNzk1NDg1NzIwfQ.UH5KE7NsX-i8o8WEA6ub7sIFgJyTIiGGmeT9WJrRjgQ',asset:2275207,lat:39.09,lon:-120.03};// centre of Lake Tahoe
+const RW={on:false,tiles:null,holder:null,cache:new Map(),t:0,stable:0,map:null,mask:null,places:[],attT:0};
+const MLAT=111034,MLON=111412.84*Math.cos(CESIUM.lat*Math.PI/180)-93.5*Math.cos(3*CESIUM.lat*Math.PI/180);
+const xz2ll=(x,z)=>[CESIUM.lat-z/MLAT,CESIUM.lon+x/MLON],ll2xz=(la,lo)=>[(lo-CESIUM.lon)*MLON,-(la-CESIUM.lat)*MLAT];
+const ll2dem=(la,lo)=>{const n=4096*256,r=la*Math.PI/180;return [(lo+180)/360*n-679*256,(1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n-1561*256]};
+const rcRay=new THREE.Raycaster(),DOWNV=new THREE.Vector3(0,-1,0),rcO=new THREE.Vector3();
+function realH(x,z){const k=Math.round(x/8)+','+Math.round(z/8),c=RW.cache.get(k),now=performance.now();if(c&&now-c.t<1500)return c.h;
+  rcO.set(x,9000,z);rcRay.set(rcO,DOWNV);rcRay.far=14000;const hit=rcRay.intersectObject(RW.holder,true)[0],h=hit?hit.point.y:(c?c.h:-1e4);
+  if(RW.cache.size>30000)RW.cache.clear();RW.cache.set(k,{h,t:now});return h}
+function demWet(x,z){if(!RW.mask)return false;const [la,lo]=xz2ll(x,z),[px,py]=ll2dem(la,lo),i=Math.round(px),j=Math.round(py);return i>=0&&j>=0&&i<1792&&j<2048&&RW.mask[j*1792+i]===1}
+function gH(x,z){return RW.on?realH(x,z):groundH(x,z)}
+function sH(x,z){return RW.on?realH(x,z):Math.max(groundH(x,z),0)}
+function wetAt(x,z){return RW.on?demWet(x,z):groundH(x,z)<0}
+// elevation data (already in the repo for the drift game): lake outline for water landings + the minimap
+fetch('maps/tahoe_dem.png').then(r=>r.ok?r.blob():Promise.reject(r.status)).then(b=>createImageBitmap(b,{colorSpaceConversion:'none',premultiplyAlpha:'none'})).then(bm=>{
+  const W=bm.width,H=bm.height,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(bm,0,0);const d=g.getImageData(0,0,W,H).data,h=new Float32Array(W*H);
+  for(let i=0;i<h.length;i++)h[i]=((d[i*4]<<8)|d[i*4+1])/4-450;
+  const m=new Uint8Array(W*H),q=[851+790*W];m[q[0]]=1;while(q.length){const k=q.pop(),x=k%W,y=(k/W)|0;for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const a=x+dx,b=y+dy;if(a<443||a>1229||b<151||b>1427)continue;const kk=b*W+a;if(!m[kk]&&h[kk]<.5){m[kk]=1;q.push(kk)}}}
+  RW.mask=m;const S=360,mc=document.createElement('canvas');mc.width=mc.height=S;const mg=mc.getContext('2d'),im=mg.createImageData(S,S);
+  const H2=(x,z)=>{const [la,lo]=xz2ll(x,z),[px,py]=ll2dem(la,lo),i=clamp(Math.round(px),0,W-1),j=clamp(Math.round(py),0,H-1);return [h[j*W+i],m[j*W+i]]};
+  for(let y=0;y<S;y++)for(let x=0;x<S;x++){const wx=(x/S-.5)*64000,wz=(y/S-.5)*64000,[hh,wet]=H2(wx,wz),[h2]=H2(wx-120,wz-120),sh=clamp((h2-hh)*.01,-.3,.3),k=(y*S+x)*4;let r,gg,b;
+    if(wet){r=40;gg=105;b=150}else if(hh>1150){r=228;gg=230;b=232}else{const t=clamp((hh+450)/1600,0,1);r=95+t*70;gg=120+t*40;b=70+t*50}
+    im.data[k]=clamp(r*(1+sh),0,255);im.data[k+1]=clamp(gg*(1+sh),0,255);im.data[k+2]=clamp(b*(1+sh),0,255);im.data[k+3]=255}
+  mg.putImageData(im,0,0);RW.map=mc;
+  RW.places=[['South Lake Tahoe',38.935,-119.984],['Emerald Bay',38.954,-120.105],['Tahoe City',39.168,-120.142],['Incline Village',39.251,-119.953],['Lake Tahoe Airport',38.894,-119.995],['Heavenly',38.935,-119.906],['Kings Beach',39.238,-120.026],['Zephyr Cove',39.006,-119.948],['Mt. Tallac',38.906,-120.099],['Sand Harbor',39.198,-119.931]].map(([n,la,lo])=>{const [x,z]=ll2xz(la,lo),[hh]=H2(x,z);return [n,x,z,hh]})}).catch(e=>console.warn('elevation data unavailable',e));
+function setReal(on){RW.on=on;PROC.forEach(o=>o.visible=!on);if(on&&!RW.labelled){RW.labelled=true;AP.z=0;RW.places.forEach(([n,x,z,hh])=>label(n,x,hh+260-(x*x+z*z)/12742000,z))}$('attrib').style.display=on?'block':'none'}
+RW.labels=[];
+if(!/procedural/.test(location.search)){$('rwstat').textContent='🌍 Loading the real world (Lake Tahoe, photo-scanned in 3D)…';
+  import('https://cdn.jsdelivr.net/npm/3d-tiles-renderer@0.3.46/src/index.js').then(T=>{
+    const holder=new THREE.Group();holder.rotation.y=Math.PI/2;holder.position.y=-1868;scene.add(holder);RW.holder=holder;// tiles come in with X = north; turn so north is -Z
+    const tiles=new T.TilesRenderer();tiles.registerPlugin(new T.CesiumIonAuthPlugin({apiToken:CESIUM.token,assetId:CESIUM.asset,autoRefreshToken:true}));
+    tiles.errorTarget=LOW?18:10;const GB=1024**3;Object.assign(tiles.lruCache,LOW?{minBytesSize:.25*GB,maxBytesSize:.35*GB}:{minBytesSize:.7*GB,maxBytesSize:.9*GB,minSize:9000,maxSize:12000});
+    tiles.setLatLonToYUp(CESIUM.lat*Math.PI/180,CESIUM.lon*Math.PI/180);
+    tiles.addEventListener('load-model',({scene:sc})=>sc.traverse(o=>{if(o.isMesh&&o.material){o.material.toneMapped=false;o.material.fog=true}}));
+    tiles.setCamera(camera);holder.add(tiles.group);RW.tiles=tiles;
+    RW.tick=dt=>{RW.t+=dt;camera.updateMatrixWorld();tiles.downloadQueue.maxJobs=LOW?12:24;tiles.parseQueue.maxJobs=LOW?4:8;tiles.setResolutionFromRenderer(camera,renderer);tiles.update();
+      if(!RW.on&&!RW.failed){// level the scanned world so Lake Tahoe's surface sits at height 0, then switch over
+        if((RW.t*3|0)!==((RW.t-dt)*3|0)){rcO.set(0,9000,0);rcRay.set(rcO,DOWNV);rcRay.far=14000;const hit=rcRay.intersectObject(holder,true)[0];
+          if(hit){const h=hit.point.y;holder.position.y-=h;holder.updateMatrixWorld(true);RW.cache.clear();RW.stable=Math.abs(h)<.5?RW.stable+1:0;$('rwstat').textContent='🌍 Loading the real world… almost there';
+            if(RW.stable>=4&&RW.mask){setReal(true);$('rwstat').textContent='🌍 Real world loaded — you\'re over Lake Tahoe';if(st!=='menu')banner('Real world loaded','Lake Tahoe, photo-scanned in 3D',2.5)}}}
+        if(RW.t>45){RW.failed=true;$('rwstat').textContent='Real world is taking too long — using the made-up valley';tiles.group.visible=false}}
+      if(RW.on&&(RW.attT-=dt)<=0){RW.attT=1;const a=tiles.getAttributions().map(v=>String(v.value).replace(/<[^>]*>/g,'')).filter(Boolean);
+        $('attrib').innerHTML='<b style="font-family:Arial,sans-serif;letter-spacing:-.02em">Google</b> · '+[...new Set(a)].join(' · ').replace(/</g,'&lt;')+' · 3D tiles via Cesium ion'}};
+  }).catch(e=>{RW.failed=true;console.warn('3D tiles failed',e);$('rwstat').textContent='Could not load the real world — using the made-up valley'})}
 
 // ================= per-frame =================
 const chaseQ=new THREE.Quaternion();
@@ -795,7 +846,7 @@ function pilotTick(dt,t){const u=pilot.userData;
     tmpQ.setFromEuler(EUL.set(-Math.PI/2+Math.sin(t*1.7)*.15,Math.atan2(-v.x,-v.z)+Math.sin(t*.9)*.4,Math.sin(t*2.3)*.2));pilot.quaternion.slerp(tmpQ,settle*Math.min(1,dt*2));
     u.armL.rotation.x=Math.sin(t*16)*2*(1-settle)+settle*(Math.PI*.5+Math.sin(t*9)*.5);u.armR.rotation.x=Math.cos(t*16)*2*(1-settle)+settle*(Math.PI*.5+Math.cos(t*9)*.5);u.armL.rotation.z=-settle*.9;u.armR.rotation.z=settle*.9;
     u.legL.rotation.x=Math.sin(t*13)*(1-settle*.6);u.legR.rotation.x=-Math.sin(t*13)*(1-settle*.6);u.legL.rotation.z=-settle*.35;u.legR.rotation.z=settle*.35;u.legL.userData.knee.rotation.x=-.3-settle*.5+Math.sin(t*7)*.2;u.legR.userData.knee.rotation.x=-.3-settle*.5-Math.sin(t*7)*.2;
-    const g=surfH(pilot.position.x,pilot.position.z);if(pilot.position.y<g+.4){const wet=groundH(pilot.position.x,pilot.position.z)<0;pilot.position.y=g+.4;pil='gone';splash(pilot.position.clone(),wet);if(wet)pilot.visible=false;else pilot.rotation.set(-Math.PI/2,pilot.rotation.y,0)}}}
+    const g=sH(pilot.position.x,pilot.position.z);if(pilot.position.y<g+.4){const wet=wetAt(pilot.position.x,pilot.position.z);pilot.position.y=g+.4;pil='gone';splash(pilot.position.clone(),wet);if(wet)pilot.visible=false;else pilot.rotation.set(-Math.PI/2,pilot.rotation.y,0)}}}
 const camQ=new THREE.Quaternion();
 function cameraTick(dt,t){
   if(st==='throwing'){thr.ct=(thr.ct||0)+dt;
@@ -809,7 +860,7 @@ function cameraTick(dt,t){
     chaseQ.slerp(P.quaternion,1-Math.exp(-dt*3.5));orb.t-=dt;if(orb.t<0){orb.y*=Math.exp(-dt*2);orb.p*=Math.exp(-dt*2)}
     tmpQ.setFromEuler(EUL.set(orb.p-.13,orb.y,0));camQ.copy(chaseQ).multiply(tmpQ);
     camera.position.copy(P.position).add(tmpV.set(0,2.5,44).applyQuaternion(camQ));camera.quaternion.copy(camQ);
-    const g=surfH(camera.position.x,camera.position.z)+2.5;if(camera.position.y<g)camera.position.y=g}
+    const g=sH(camera.position.x,camera.position.z)+2.5;if(camera.position.y<g)camera.position.y=g}
   else{// first person, inside the plane
     P.updateMatrixWorld(true);const e=st==='fly'?tmpV2.set(-.6,.26,-11.3):tmpV2.copy(eye);
     const tb=st==='fly'?0:.006;e.y+=Math.sin(t*1.7)*tb+Math.sin(t*4.3)*tb*.4;
@@ -827,16 +878,16 @@ let mapImg=null;function buildMap(){const S=360,c=document.createElement('canvas
     im.data[k]=clamp(r*(1+sh),0,255);im.data[k+1]=clamp(gg*(1+sh),0,255);im.data[k+2]=clamp(b*(1+sh),0,255);im.data[k+3]=255}
   g.putImageData(im,0,0);const X=wx=>(wx/64000+.5)*S,Y=wz=>((wz+2000)/64000+.5)*S;g.fillStyle='#ddd';g.fillRect(X(RWY.x)-1.5,Y(RWY.z-RWY.len/2),3,RWY.len/64000*S);g.fillStyle='#f5c26b';g.beginPath();g.arc(X(TOWN.x),Y(TOWN.z),5,0,7);g.fill();mapImg=c}
 function hudTick(){const mc=$('mini').getContext('2d'),S=360,px=P.position.x,pz=P.position.z,sc=S/64000,zoom=3.2;mc.save();mc.fillStyle='#14506e';mc.fillRect(0,0,S,S);mc.translate(S/2,S/2);mc.scale(zoom,zoom);
-  mc.drawImage(mapImg,-(px*sc+S/2),-((pz+2000)*sc+S/2));mc.restore();
+  mc.drawImage(RW.on&&RW.map?RW.map:mapImg,-(px*sc+S/2),-((pz-(RW.on?0:-2000))*sc+S/2));mc.restore();
   
   axes();const hd=Math.atan2(-fwd.x,-fwd.z);mc.save();mc.translate(S/2,S/2);mc.rotate(-hd);mc.fillStyle='#ffd36b';mc.strokeStyle='#000';mc.lineWidth=3;mc.beginPath();mc.moveTo(0,-16);mc.lineTo(11,12);mc.lineTo(0,6);mc.lineTo(-11,12);mc.closePath();mc.stroke();mc.fill();mc.restore();
   mc.fillStyle='#fff';mc.font='bold 22px system-ui';mc.textAlign='center';mc.fillText('N',S/2,26);
   $('hSpd').textContent=Math.round(F.speed*1.944);$('hAlt').textContent=Math.round((P.position.y+1900)*3.281/10)*10;
   const vs=F.mode==='air'?vel.y*196.85:0;$('hVs').textContent=(vs>0?'+':'')+Math.round(vs/50)*50;$('hHdg').textContent=String(Math.round(((-hd*57.3)%360+360)%360)).padStart(3,'0')+'°';
   $('hThr').textContent=Math.round(F.thr*100)+'%';$('hThrB').style.width=F.thr*100+'%';$('hGear').textContent=F.gearT>.9?'DOWN':F.gearT<.05?'UP':'…';$('hGear').style.color=F.gearT>.9?'#7cf57c':'#fff';
-  let w='';const agl=P.position.y-surfH(px,pz);if(F.mode==='air'){if(F.speed<STALL)w='STALL — push the nose down';else if(agl<160&&vel.y<-12)w='PULL UP!';else if(agl<120&&F.gearT<.5&&F.speed<110)w='GEAR UP — press G'}
+  let w='';const agl=P.position.y-sH(px,pz);if(F.mode==='air'){if(F.speed<STALL)w='STALL — push the nose down';else if(agl<160&&vel.y<-12)w='PULL UP!';else if(agl<120&&F.gearT<.5&&F.speed<110)w='GEAR UP — press G'}
   if(Math.hypot(px,pz)>60000)w=w||'Turn back to the valley';const wn=$('warn');wn.style.display=w&&F.mode!=='crashed'?'block':'none';wn.textContent=w;
-  let loc='';if(groundH(px,pz)<0)loc='Over Silverpine Lake';let bd=7000;PLACES.forEach(([n,x,z])=>{const d=Math.hypot(px-x,pz-z);if(n!=='Silverpine Lake'&&d<bd){bd=d;loc=(d<2500?'Over ':'Near ')+n}});$('loc').textContent=F.mode==='ground'?'On the ground':F.mode==='water'?'Floating on the lake':loc||'Wilderness'}
+  let loc='';if(wetAt(px,pz))loc=RW.on?'Over Lake Tahoe':'Over Silverpine Lake';let bd=7000;(RW.on?RW.places:PLACES).forEach(([n,x,z])=>{const d=Math.hypot(px-x,pz-z);if(n!=='Silverpine Lake'&&d<bd){bd=d;loc=(d<2500?'Over ':'Near ')+n}});$('loc').textContent=F.mode==='ground'?'On the ground':F.mode==='water'?'Floating on the lake':loc||'Wilderness'}
 function bubbleTick(dt){const b=$('bubble');if(bubT<=0){b.style.display='none';return}bubT-=dt;pilot.updateMatrixWorld(true);pilot.localToWorld(tmpV.set(0,1.1,0));tmpV.project(camera);
   if(tmpV.z>1||Math.abs(tmpV.x)>1.2||Math.abs(tmpV.y)>1.2){b.style.display='none';return}b.style.display='block';b.style.left=(tmpV.x*.5+.5)*innerWidth+'px';b.style.top=(-tmpV.y*.5+.5)*innerHeight+'px'}
 
@@ -854,18 +905,19 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last
   if(INNER.visible&&(pfdN++%2===0))drawPFD();
   const a=st==='walk'||st==='seated'?currentAction():null;setPrompt(a?a.t:'');$('cross').style.display=(st==='walk'||st==='seated')&&!TOUCH?'block':'none';
   if(st==='fly')hudTick();bubbleTick(dt);if(bannerT>0){bannerT-=dt;if(bannerT<=0)$('banner').style.opacity=0}
-  for(const l of LABELS){const d=l.position.distanceTo(camera.position);l.visible=st==='fly'&&view==='chase'&&d>600&&d<32000}
+  for(const l of LABELS){const d=l.position.distanceTo(camera.position);l.visible=RW.on!==PROC_LABELS.includes(l)&&st==='fly'&&view==='chase'&&d>600&&d<32000}
   if(waterPre)water.material.uniforms.time.value+=dt*.5;else{waterNorm.offset.x+=dt*.0012;waterNorm.offset.y+=dt*.0007}
   tmpV.set(1,0,0).applyQuaternion(camera.quaternion);tmpV2.set(0,1,0).applyQuaternion(camera.quaternion);const cr=Math.atan2(-tmpV.y,tmpV2.y);for(const m of CLOUD_M)m.rotation=cr;
   if(SKYDOME)SKYDOME.position.copy(camera.position);
   sunL.target.position.copy(P.position);sunL.position.copy(P.position).addScaledVector(SUN,2000);sunL.target.updateMatrixWorld();
   audioTick();
-  if(waterPre)waterPre();renderer.shadowMap.needsUpdate=true;composer.render()}
+  if(RW.tiles)RW.tick(dt);
+  if(waterPre&&water.visible)waterPre();renderer.shadowMap.needsUpdate=true;composer.render()}
 
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight)});
 $('again').onclick=respawn;
 $('go').onclick=()=>{initAudio();$('menu').style.display='none';$('obj').style.display='block';st='seated';setInside(true);objective('You\'re a passenger… but you want to fly this plane. Get out of your seat!');
-  setTimeout(ding,600);setTimeout(()=>banner('Pinecrest Air · Flight 22','Cruising over Silverpine Lake',3),1500);if(!TOUCH)lockPtr()};
+  setTimeout(ding,600);setTimeout(()=>banner('Pinecrest Air · Flight 22',RW.on?'Cruising over Lake Tahoe':'Cruising over Silverpine Lake',3),1500);if(!TOUCH)lockPtr()};
 window.__g=()=>({st,pil,eye:eye.toArray(),mode:F.mode,y:P.position.y,prompt:(currentAction()||{}).t});window.__t={eye,act:()=>act(),look:(y,p)=>{yaw=y;pitch=p},P,F,fly:()=>startFlying(),view:v=>{view=v},orb,scene,water,groundH};
 buildMap();setInside(true);autopilot(0);
 $('load').style.display='none';
