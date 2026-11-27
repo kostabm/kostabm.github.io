@@ -1254,13 +1254,14 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last
   {const onFoot=st==='gate',c=sunL.shadow.camera,ext=onFoot?42:24;if(c.right!==ext){c.left=c.bottom=-ext;c.right=c.top=ext;c.updateProjectionMatrix()}
     sunL.target.position.copy(onFoot?eye:P.position);sunL.position.copy(sunL.target.position).addScaledVector(SUN,2000);sunL.target.updateMatrixWorld()}
   audioTick();
+  if(!RW.on)water.visible=st!=='gate';
   if(RW.tiles)RW.tick(dt);
   if(waterPre&&water.visible)waterPre();renderer.shadowMap.needsUpdate=true;composer.render()}
 
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight)});
 $('again').onclick=respawn;
 $('go').onclick=()=>{initAudio();$('menu').style.display='none';if(TOUCH){$('touch').style.display='block';try{document.documentElement.requestFullscreen?.().catch(()=>{})}catch(e){}}$('obj').style.display='block';goToGate(true);setTimeout(ding,600)};
-window.__g=()=>({st,pil,eye:eye.toArray(),mode:F.mode,y:P.position.y,prompt:(currentAction()||{}).t});window.__t={eye,act:()=>act(),look:(y,p)=>{yaw=y;pitch=p},P,F,fly:()=>startFlying(),TO,view:v=>{view=v},orb,scene,water,groundH,crash:m=>crash(m),gate:()=>goToGate(),G:GATE,sit:i=>sitAt(GATE.grp.userData.seats[i])};
+window.__RC=THREE.Raycaster;window.__g=()=>({st,pil,eye:eye.toArray(),mode:F.mode,y:P.position.y,prompt:(currentAction()||{}).t});window.__t={eye,act:()=>act(),look:(y,p)=>{yaw=y;pitch=p},P,F,fly:()=>startFlying(),TO,cam:()=>camera,view:v=>{view=v},orb,scene,water,groundH,crash:m=>crash(m),gate:()=>goToGate(),G:GATE,sit:i=>sitAt(GATE.grp.userData.seats[i])};
 buildMap();setInside(true);autopilot(0);
 $('load').style.display='none';
 requestAnimationFrame(frame);
