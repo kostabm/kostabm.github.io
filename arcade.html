@@ -18,6 +18,8 @@
   .thumb{height:120px;display:flex;align-items:center;justify-content:center;font-size:56px}
   .info{padding:12px 14px}.info b{font-size:17px}.info p{color:#9aa0c3;font-size:13px;margin-top:4px;line-height:1.35}
   .play{display:inline-block;margin-top:10px;font-size:13px;font-weight:700;color:#7cf5c4}
+  .blankbtn{margin-top:28px;font:700 15px 'Space Grotesk',system-ui,sans-serif;color:#0b0d17;background:#7cf5c4;border:0;border-radius:14px;padding:12px 20px;cursor:pointer}
+  .blankbtn:hover{filter:brightness(1.08)}
   #stage{position:fixed;inset:0;display:none;background:#000}
   #stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
   #bar{position:absolute;top:calc(4px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:2;opacity:1;transition:opacity .6s}
@@ -32,6 +34,7 @@
   <h1><span>Kosta's Arcade</span></h1>
   <div class="sub">All my games in one place. Pick one to play.</div>
   <div class="games" id="games"></div>
+  <button id="blank" class="blankbtn">🗔 Open in an about:blank tab</button>
 </div>
 <div id="stage">
   <div id="bar"><button id="back">◀ All games</button><button id="full">⛶ Full screen</button></div>
@@ -48,9 +51,9 @@ let frame=null;
 for(const g of GAMES){
   const b=document.createElement('button');b.className='card';
   b.innerHTML=`<div class="thumb" style="background:${g.bg}">${g.emoji}</div><div class="info"><b>${g.name}</b><p>${g.desc}</p><span class="play">▶ Play</span></div>`;
-  b.onclick=()=>open(g);list.appendChild(b);
+  b.onclick=()=>openGame(g);list.appendChild(b);
 }
-function open(g){
+function openGame(g){
   frame=document.createElement('iframe');
   frame.src=g.file;frame.title=g.name;
   frame.allow='fullscreen; autoplay; gamepad; accelerometer; gyroscope';
@@ -61,22 +64,35 @@ function open(g){
   const bar=document.getElementById('bar');bar.classList.remove('dim');clearTimeout(window._dimT);window._dimT=setTimeout(()=>bar.classList.add('dim'),3500);
   history.pushState({g:g.file},'' ,'#'+g.file.replace('.html',''));
 }
-function close(){
+function closeGame(){
   if(frame){frame.remove();frame=null;}
   stage.style.display='none';menu.style.display='flex';
   if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});
 }
-document.getElementById('back').onclick=()=>{if(history.state&&history.state.g)history.back();else close();};
+document.getElementById('back').onclick=()=>{if(history.state&&history.state.g)history.back();else closeGame();};
 document.getElementById('full').onclick=()=>{
   const el=document.documentElement;
   if(document.fullscreenElement)document.exitFullscreen();
   else if(el.requestFullscreen)el.requestFullscreen().catch(()=>window.open(frame?frame.src:location.href,'_blank'));
   else window.open(frame?frame.src:location.href,'_blank');
 };
-addEventListener('popstate',e=>{if(!(e.state&&e.state.g))close();});
+// open the whole arcade inside an about:blank tab
+const blankBtn=document.getElementById('blank');
+if(window.top!==window)blankBtn.style.display='none';
+blankBtn.onclick=()=>{
+  const w=window.open('about:blank','_blank');
+  if(!w){alert('Your browser blocked the new tab. Allow pop-ups for this site and try again.');return;}
+  const url=new URL('arcade.html',location.href).href;
+  w.document.title='about:blank';
+  const st=w.document.createElement('style');st.textContent='html,body{margin:0;height:100%;overflow:hidden;background:#0b0d17}iframe{border:0;width:100%;height:100%;display:block}';
+  w.document.head.appendChild(st);
+  const f=w.document.createElement('iframe');f.src=url;f.allow='fullscreen; autoplay; gamepad; accelerometer; gyroscope';f.allowFullscreen=true;
+  w.document.body.appendChild(f);
+};
+addEventListener('popstate',e=>{if(!(e.state&&e.state.g))closeGame();});
 // open straight into a game with a link like arcade.html#powder
 const start=GAMES.find(g=>'#'+g.file.replace('.html','')===location.hash);
-if(start){history.replaceState(null,'',location.pathname);open(start);}
+if(start){history.replaceState(null,"",location.pathname);openGame(start);}
 </script>
 </body>
 </html>
