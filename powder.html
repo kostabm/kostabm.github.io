@@ -139,6 +139,7 @@ addEventListener('error',e=>{const d=document.getElementById('err');d.style.disp
 <script type="module">
 import * as THREE from 'three';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 const V3 = THREE.Vector3;
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -722,6 +723,7 @@ function makeRider(jacket,pants,board,helmet){
   return r;
 }
 function applyPose(r){
+  if(r.real){poseReal(r);return;}
   const c=r.c,g=r.g;
   const hipH=0.98-0.42*c-0.1*g, ankY=0.13, d=hipH-ankY, a=0.5, b=0.48;
   const yk=(a*a-b*b+d*d)/(2*d), zk=Math.sqrt(Math.max(0,a*a-yk*yk));
@@ -746,9 +748,175 @@ const P={pos:new V3(),vel:new V3(),heading:0,air:false,airT:0,yawAcc:0,flip:0,gr
   comp:0,n:new V3(0,1,0),q:new THREE.Quaternion(),tumble:new V3(),steerS:0,last:{pos:new V3(),heading:0},safeT:0,maxAir:0};
 let gearType=store.get('pp_gear','ski'), jacketColor=store.get('pp_jacket','#e5484d');
 let rider=null;
+// ======================= REAL PEOPLE =======================
+// Realistic 3D avatars (MML avatars by Improbable, MIT licence — see models/people/LICENSE.txt),
+// dressed in ski gear and posed live into a skiing / snowboarding stance.
+let AV=null;
+function regionOf(n){
+  if(/^neck/.test(n))return 4;
+  if(/^head/.test(n))return 0;
+  if(/hand|thumb|index|middle|ring|pinky/.test(n))return 4;
+  if(/foot|ball/.test(n))return 3;
+  if(/thigh|calf|pelvis|root|ik_/.test(n))return 2;
+  return 1;
+}
+function prepAvatar(sc){
+  sc.updateMatrixWorld(true);
+  const box0=new THREE.Box3().setFromObject(sc,true);
+  const hemY=sc.getObjectByName('pelvis').getWorldPosition(new V3()).y+0.045*(box0.max.y-box0.min.y);
+  const _vp=new V3();
+  sc.traverse(o=>{
+    if(!o.isSkinnedMesh||o.geometry.attributes.aReg)return;
+    const bones=o.skeleton.bones,si=o.geometry.attributes.skinIndex,sw=o.geometry.attributes.skinWeight,reg=new Float32Array(si.count),hem=new Float32Array(si.count);
+    for(let k=0;k<si.count;k++){
+      const ws=[sw.getX(k),sw.getY(k),sw.getZ(k),sw.getW(k)],is=[si.getX(k),si.getY(k),si.getZ(k),si.getW(k)];
+      let b=0;for(let c=1;c<4;c++)if(ws[c]>ws[b])b=c;
+      const bn=bones[is[b]]?bones[is[b]].name:'';
+      reg[k]=regionOf(bn);hem[k]=reg[k]===2?-1:1;
+      if(/pelvis|spine|thigh/.test(bn)){_vp.fromBufferAttribute(o.geometry.attributes.position,k).applyMatrix4(o.matrixWorld);reg[k]=1;hem[k]=clamp((_vp.y-hemY)*20,-1,1);}
+    }
+    o.geometry.setAttribute('aReg',new THREE.BufferAttribute(reg,1));o.geometry.setAttribute('aHem',new THREE.BufferAttribute(hem,1));
+  });
+  const box=new THREE.Box3().setFromObject(sc,true);
+  const p=n=>sc.getObjectByName(n).getWorldPosition(new V3());
+  const flip=p('ball_l').z<p('foot_l').z;
+  return {scene:sc,minY:box.min.y,h:box.max.y-box.min.y,flip};
+}
+async function loadAvatars(){
+  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+  const {DRACOLoader}=await import('three/addons/loaders/DRACOLoader.js');
+  const ld=new GLTFLoader(),dr=new DRACOLoader();
+  dr.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/');ld.setDRACOLoader(dr);
+  const names=['person1','person2','person3','person4'].map(n=>n+(IS_TOUCH?'':'_hd'));
+  const all=await Promise.race([Promise.all(names.map(n=>ld.loadAsync('models/people/'+n+'.glb'))),new Promise((_,j)=>setTimeout(()=>j(new Error('timeout')),30000))]);
+  return all.map(g=>prepAvatar(g.scene));
+}
+const CTRL=['pelvis','spine_01','spine_03','head','thigh_l','calf_l','foot_l','thigh_r','calf_r','foot_r','upperarm_l','lowerarm_l','upperarm_r','lowerarm_r','lowerarm_l','hand_l','hand_r','ball_l','ball_r'];
+function makeRealRider(vi,jacket,pants,board,helmet){
+  const av=AV[vi%AV.length];
+  const r=makeRider(jacket,pants,board,helmet); // keeps the skis / board
+  r.root.remove(r.body);
+  const body=new THREE.Group();r.root.add(body);if(board)body.rotation.y=Math.PI/2;r.body=body;
+  const m=SkeletonUtils.clone(av.scene);
+  const tall=1.66+Math.random()*0.16, s=tall/av.h;
+  m.scale.setScalar(s);if(av.flip)m.rotation.y=Math.PI;
+  m.position.y=-av.minY*s+0.05;
+  body.add(m);
+  // clothing: recolour by body part (taken from the skin weights), keep the fabric shading from the texture
+  const U={uJ:{value:new THREE.Color(jacket)},uP:{value:new THREE.Color(pants)},uB:{value:new THREE.Color(0x1c1f26)},uG:{value:new THREE.Color(0x15171c)}};
+  m.traverse(o=>{
+    if(!o.isMesh)return;
+    o.frustumCulled=false;o.castShadow=true;o.receiveShadow=true;
+    const mat=o.material.clone();mat.envMapIntensity=0.5;
+    mat.onBeforeCompile=sh=>{
+      Object.assign(sh.uniforms,U);
+      sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float aReg;\nattribute float aHem;\nflat varying float vReg;\nvarying float vHem;').replace('#include <begin_vertex>','#include <begin_vertex>\nvReg=aReg;vHem=aHem;');
+      sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 uJ,uP,uB,uG;\nflat varying float vReg;\nvarying float vHem;')
+      .replace('#include <map_fragment>',`#include <map_fragment>
+        {float l=dot(diffuseColor.rgb,vec3(.2126,.7152,.0722));float det=clamp(0.62+l*1.6,0.62,1.3);
+         if(vReg>0.5&&vReg<2.5)diffuseColor.rgb=(vHem>0.?uJ:uP)*det;
+         else if(vReg>2.5&&vReg<3.5)diffuseColor.rgb=uB*det;
+         else if(vReg>3.5)diffuseColor.rgb=uG*det;}`)
+      .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nif(vReg>0.5)roughnessFactor=vReg>2.5?0.5:0.72;');
+    };
+    mat.customProgramCacheKey=()=>'skierCloth';
+    o.material=mat;
+  });
+  r.root.updateMatrixWorld(true);
+  const B={};for(const n of CTRL)B[n]=m.getObjectByName(n);
+  B.spine_03=B.spine_03||m.getObjectByName('spine_02');
+  const qB0=body.getWorldQuaternion(new THREE.Quaternion()),iqB0=qB0.clone().invert();
+  const restQ={},rw={};
+  for(const n in B){restQ[n]=B[n].quaternion.clone();rw[n]=iqB0.clone().multiply(B[n].getWorldQuaternion(new THREE.Quaternion()));}
+  const W=n=>B[n].getWorldPosition(new V3());
+  const loc=v=>body.worldToLocal(v.clone());
+  const side=Math.sign(loc(W('thigh_l')).x)||1; // which body-x side the avatar's "_l" limbs are on
+  const footL=loc(W('foot_l'));
+  const R={bones:B,restQ,rw,restPelvis:B.pelvis.position.clone(),
+    lt:W('thigh_l').distanceTo(W('calf_l')),ls:W('calf_l').distanceTo(W('foot_l')),
+    ankleY:footL.y,footZ:footL.z,footDir:loc(W('ball_l')).sub(footL).normalize(),side,scale:tall/1.75};
+  // helmet + goggles riding on the head bone
+  const hw=W('head'),k=R.scale;
+  const hc=new V3(0,0.1*k,0.012*k).applyQuaternion(qB0).add(hw);
+  const helm=new THREE.Mesh(new THREE.SphereGeometry(0.14*k,22,14,0,Math.PI*2,0,Math.PI*0.6),new THREE.MeshStandardMaterial({color:helmet,roughness:0.28}));
+  const gog=new THREE.Mesh(new THREE.SphereGeometry(0.142*k,22,6,Math.PI/2-0.82,1.64,Math.PI/2+0.02,0.3),new THREE.MeshStandardMaterial({color:0xffa640,roughness:0.04,metalness:1}));
+  const strap=new THREE.Mesh(new THREE.TorusGeometry(0.14*k,0.011*k,6,24),new THREE.MeshStandardMaterial({color:0x15171c,roughness:.6}));strap.rotation.x=Math.PI/2;strap.position.y=-0.03*k;
+  for(const o of [helm,gog,strap]){o.castShadow=true;}
+  const hg=new THREE.Group();hg.add(helm,gog,strap);hg.position.copy(hc);hg.quaternion.copy(qB0);
+  B.head.attach(hg);
+  // ski poles follow the hands
+  if(!board){R.poles=[1,-1].map(()=>{const p=new THREE.Mesh(new THREE.CylinderGeometry(0.011,0.009,1.2,6),steelMat);p.castShadow=true;const bk=new THREE.Mesh(new THREE.TorusGeometry(0.045,0.007,4,12),new THREE.MeshStandardMaterial({color:0x15171c}));bk.rotation.x=Math.PI/2;bk.position.y=-0.5;p.add(bk);body.add(p);return p;});}
+  r.real=R;
+  applyPose(r);
+  return r;
+}
+const _ra=new V3(),_rb=new V3(),_rc=new V3(),_rd=new V3(),_rq=new THREE.Quaternion(),_rp=new THREE.Quaternion(),_rB=new THREE.Quaternion(),_rt=new THREE.Quaternion(),_XA=new V3(1,0,0),_YA=new V3(0,1,0);
+function setWorldQ(b,q){b.parent.getWorldQuaternion(_rp);b.quaternion.copy(_rp.invert().multiply(q));b.updateMatrixWorld(true);}
+function aimDir(b,child,dirW){
+  b.getWorldPosition(_ra);child.getWorldPosition(_rb);_rb.sub(_ra).normalize();
+  _rt.setFromUnitVectors(_rb,dirW);b.getWorldQuaternion(_rq);_rq.premultiply(_rt);setWorldQ(b,_rq);
+}
+function aimAt(b,child,tW){b.getWorldPosition(_ra);_rc.copy(tW).sub(_ra).normalize();aimDir(b,child,_rc);}
+const _dir=(x,y,z)=>_rd.set(x,y,z).normalize().applyQuaternion(_rB);
+function poseReal(r){
+  const R=r.real,B=R.bones,body=r.body;
+  for(const n in R.restQ)B[n].quaternion.copy(R.restQ[n]);
+  B.pelvis.position.copy(R.restPelvis);
+  r.root.updateMatrixWorld(true);
+  body.getWorldQuaternion(_rB);
+  const c=r.c,g=r.g,sp=r.spread,k=R.scale;
+  // drop the hips and shift them back over the boots
+  B.pelvis.getWorldPosition(_ra);
+  _rc.set(0,-(0.05+0.34*c+0.08*g)*k,-(0.03+0.1*c)*k).applyQuaternion(_rB);_ra.add(_rc);
+  B.pelvis.parent.worldToLocal(_ra);B.pelvis.position.copy(_ra);B.pelvis.updateMatrixWorld(true);
+  // lean the upper body forward, keep the head up and looking where we're going
+  const lean=0.12+0.5*c+0.3*g;
+  _rq.setFromAxisAngle(_XA,lean*0.55);_rt.copy(_rB).multiply(_rq).multiply(R.rw.spine_01);setWorldQ(B.spine_01,_rt);
+  _rq.setFromAxisAngle(_XA,lean);_rt.copy(_rB).multiply(_rq).multiply(R.rw.spine_03);setWorldQ(B.spine_03,_rt);
+  _rq.setFromAxisAngle(_YA,r.board?-1.2:0);_rp.setFromAxisAngle(_XA,0.12);_rq.multiply(_rp);_rt.copy(_rB).multiply(_rq).multiply(R.rw.head);setWorldQ(B.head,_rt);
+  // legs: two-bone IK so the boots stay locked on the skis / board
+  const fw=_rd.set(0,0,1).applyQuaternion(_rB).clone();
+  for(const [sd,sx] of [['l',R.side],['r',-R.side]]){
+    const H=B['thigh_'+sd].getWorldPosition(new V3());
+    const A=body.localToWorld(new V3(sx*r.ankX,R.ankleY,R.footZ));
+    let d=A.distanceTo(H);const mx=R.lt+R.ls-0.003;
+    const dir=A.clone().sub(H).normalize();if(d>mx){d=mx;A.copy(H).addScaledVector(dir,d);}
+    const a=(R.lt*R.lt-R.ls*R.ls+d*d)/(2*d),h=Math.sqrt(Math.max(0,R.lt*R.lt-a*a));
+    const pole=fw.clone().addScaledVector(dir,-fw.dot(dir)).normalize();
+    const K=H.clone().addScaledVector(dir,a).addScaledVector(pole,h);
+    aimAt(B['thigh_'+sd],B['calf_'+sd],K);
+    aimAt(B['calf_'+sd],B['foot_'+sd],A);
+    aimDir(B['foot_'+sd],B['ball_'+sd],_dir(R.footDir.x,R.footDir.y,R.footDir.z).clone());
+  }
+  // arms
+  for(const [sd,sx] of [['l',R.side],['r',-R.side]]){
+    const grab=g>0.01&&sd==='r';
+    let ua,la;
+    if(r.board){ua=[sx*0.55,-0.75,0.12];la=[sx*0.55,-0.35,0.55];}
+    else{ua=[sx*0.26,-0.86,0.42+0.25*c];la=[sx*0.1,-0.32,1];}
+    ua=ua.map((v,i)=>lerp(v,[sx*1,-0.2,0.15][i],sp));la=la.map((v,i)=>lerp(v,[sx*1,-0.05,0.25][i],sp));
+    aimDir(B['upperarm_'+sd],B['lowerarm_'+sd],_dir(...ua).clone());
+    aimDir(B['lowerarm_'+sd],B['hand_'+sd],_dir(...la).clone());
+    if(grab){
+      const T=body.localToWorld(new V3(sx*r.ankX*0.8,0.1,0.25));
+      const S=B['upperarm_'+sd].getWorldPosition(new V3());
+      const mid=S.clone().lerp(T,0.5).add(_dir(sx,0,0.3).clone().multiplyScalar(0.12));
+      const q0=B['upperarm_'+sd].quaternion.clone();aimAt(B['upperarm_'+sd],B['lowerarm_'+sd],mid);
+      const q1=B['upperarm_'+sd].quaternion.clone();B['upperarm_'+sd].quaternion.copy(q0).slerp(q1,g);B['upperarm_'+sd].updateMatrixWorld(true);
+      aimAt(B['lowerarm_'+sd],B['hand_'+sd],T);
+    }
+  }
+  if(R.poles){
+    [['l',R.side],['r',-R.side]].forEach(([sd,sx],i)=>{
+      const p=R.poles[i];const hnd=body.worldToLocal(B['hand_'+sd].getWorldPosition(new V3()));
+      const d=new V3(sx*0.05,-0.93,-0.36).normalize();
+      p.position.copy(hnd).addScaledVector(d,0.56);p.quaternion.setFromUnitVectors(_YA,d.negate());
+    });
+  }
+}
 function buildRider(){
   if(rider)scene.remove(rider.root);
-  rider=makeRider(jacketColor,0x2b3445,gearType==='board',0xf2f2f2);
+  rider=AV?makeRealRider(0,jacketColor,0x2b3445,gearType==='board',0xf2f2f2):makeRider(jacketColor,0x2b3445,gearType==='board',0xf2f2f2);
   scene.add(rider.root);
 }
 // NPC skiers
@@ -756,10 +924,11 @@ const npcs=[];
 {
   const cols=['#3e63dd','#f5d90a','#30a46c','#ff8b3e','#8e4ec6','#e5484d','#12a594','#d6409f','#ffffff','#5b5bd6'];
   for(let i=0;i<10;i++){
-    const r=makeRider(cols[i],i%3?0x23262d:0x3b4a63,i%4===1,i%2?0x23262d:0xffffff);
+    const look=[cols[i],i%3?0x23262d:0x3b4a63,i%4===1,i%2?0x23262d:0xffffff];
+    const r=makeRider(...look);
     r.root.traverse(o=>{if(o.isMesh)o.castShadow=false;});
     scene.add(r.root);
-    npcs.push({r,z:80+i*(L-300)/10,off:(R()-.5)*26,ph:R()*6,sp:11+R()*7,amp:6+R()*7,wl:14+R()*10,q:new THREE.Quaternion()});
+    npcs.push({look,vi:i+1,r,z:80+i*(L-300)/10,off:(R()-.5)*26,ph:R()*6,sp:11+R()*7,amp:6+R()*7,wl:14+R()*10,q:new THREE.Quaternion()});
   }
 }
 
@@ -1205,6 +1374,14 @@ function setPaused(v){
 // ======================= MAIN LOOP =======================
 buildRider();
 placeAtStart();
+{
+  const sb=$('startBtn');sb.disabled=true;sb.textContent='Loading skiers…';sb.style.opacity=.6;
+  loadAvatars().then(av=>{
+    AV=av;
+    buildRider();
+    for(const n of npcs){scene.remove(n.r.root);n.r=makeRealRider(n.vi,...n.look);n.r.root.traverse(o=>{if(o.isMesh)o.castShadow=false;});scene.add(n.r.root);}
+  }).catch(e=>console.warn('avatars failed, using simple riders',e)).finally(()=>{sb.disabled=false;sb.style.opacity=1;sb.textContent=started?'Resume':'Drop in';});
+}
 let lastT=performance.now(),fpsAcc=0;
 function frame(now){
   requestAnimationFrame(frame);
@@ -1278,11 +1455,12 @@ function frame(now){
       updateRider(dt,{steer:0,fy:0,jump:false,grab:false});
     }
   }
+  if(window.__camHook)window.__camHook(camera,P);
   skyMat.uniforms.uTime.value=gameTime;
   renderer.render(scene,camera);
 }
 requestAnimationFrame(frame);
-window.__pp={P,run,kickers,H,step,startAir};
+window.__pp={P,run,kickers,H,step,startAir,get rider(){return rider;},get AV(){return AV;},npcs};
 </script>
 </body>
 </html>
