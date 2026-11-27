@@ -58,6 +58,7 @@ body.touch #crash button{font-size:20px}#rot{position:fixed;left:50%;top:58%;tra
 #tstick{left:calc(16px + env(safe-area-inset-left));bottom:calc(16px + env(safe-area-inset-bottom));width:136px;height:136px}#tknob{width:58px;height:58px;margin:-29px 0 0 -29px}
 .tb{width:60px;height:60px;font-size:20px}#bAct{right:calc(16px + env(safe-area-inset-right));bottom:calc(20px + env(safe-area-inset-bottom));width:80px;height:80px;font-size:30px}
 #bUp{right:calc(108px + env(safe-area-inset-right));bottom:calc(92px + env(safe-area-inset-bottom))}#bDn{right:calc(108px + env(safe-area-inset-right));bottom:calc(22px + env(safe-area-inset-bottom))}
+#bRun{right:calc(112px + env(safe-area-inset-right));bottom:calc(30px + env(safe-area-inset-bottom))}#bRun.on{background:rgba(255,211,107,.75)}
 #bCam{right:calc(178px + env(safe-area-inset-right));bottom:calc(92px + env(safe-area-inset-bottom))}#bGear{right:calc(178px + env(safe-area-inset-right));bottom:calc(22px + env(safe-area-inset-bottom))}
 @media (orientation:portrait){body.touch #prompt{top:20%;bottom:auto}}
 .tkeys{display:none}body.touch .tkeys{display:block}body.touch .kkeys{display:none}
@@ -71,8 +72,8 @@ body.touch #crash button{font-size:20px}#rot{position:fixed;left:50%;top:58%;tra
   <p>You're just a passenger on Pinecrest Air flight 22 over Lake Tahoe… but you've always wanted to fly.<br>Board at the airport, take your seat, then get up, storm the cockpit, toss the pilot out the window and take the plane anywhere you like.</p>
   <button id="go">✈️ Board the plane</button>
   <div id="rwstat" style="font-size:14px;color:#7cf5c4;min-height:18px"></div>
-  <div id="keys" class="tkeys">📱 <b>Left stick</b> walk / steer the plane · <b>Drag the screen</b> look around · <b>✋</b> interact<br>Flying: <b>＋ －</b> throttle · <b>🎥</b> camera · <b>⚙️</b> landing gear · <b>✋</b> brakes on the ground<br>Best played with your phone sideways.</div>
-  <div id="keys2" class="kkeys"><b>Mouse</b> look · <b>W A S D</b> walk · <b>E</b> interact<br>Flying: <b>W</b>/<b>S</b> nose down/up · <b>A</b>/<b>D</b> roll · <b>Q</b>/<b>E</b> rudder · <b>Shift</b>/<b>Z</b> throttle · <b>G</b> gear · <b>B</b> brakes · <b>C</b> camera</div>
+  <div id="keys" class="tkeys">📱 <b>Left stick</b> walk / steer the plane · <b>Drag the screen</b> look around · <b>✋</b> interact · <b>🏃</b> sprint<br>Flying: <b>＋ －</b> throttle · <b>🎥</b> camera · <b>⚙️</b> landing gear · <b>✋</b> brakes on the ground<br>Best played with your phone sideways.</div>
+  <div id="keys2" class="kkeys"><b>Mouse</b> look · <b>W A S D</b> walk · <b>Shift</b> sprint · <b>E</b> interact<br>Flying: <b>W</b>/<b>S</b> nose down/up · <b>A</b>/<b>D</b> roll · <b>Q</b>/<b>E</b> rudder · <b>Shift</b>/<b>Z</b> throttle · <b>G</b> gear · <b>B</b> brakes · <b>C</b> camera</div>
   <a href="./">← Kosta's Games</a>
   <div style="font-size:11px;color:#8a90b0;max-width:560px">People: avatars and animations from <a href="https://github.com/mml-io/3d-web-experience" target="_blank" rel="noopener" style="font-size:11px">MML 3D Web Experience</a> © Improbable MV Limited, MIT licence (simplified for the web). Sky: Poly Haven (CC0). Real world: Google 3D tiles via Cesium ion.</div>
 </div>
@@ -103,6 +104,7 @@ body.touch #crash button{font-size:20px}#rot{position:fixed;left:50%;top:58%;tra
   <div id="tlook"></div>
   <div id="tstick"><div id="tknob"></div></div>
   <button class="tb" id="bAct">✋</button>
+  <button class="tb" id="bRun" style="display:none">🏃</button>
   <button class="tb fly-only" id="bCam">🎥</button>
   <button class="tb fly-only" id="bGear">⚙️</button>
   <button class="tb fly-only" id="bUp">＋</button>
@@ -488,10 +490,12 @@ const WIN_Z=[];for(let k=0;k<25;k++)WIN_Z.push(11-(k+.5)*.8);
 // ---------- realistic people: scanned-style 3D avatars (MML avatars by Improbable, MIT licence) with real idle and walking motion ----------
 const HUM=await (async()=>{if(/mannequins/.test(location.search))return null;$('load').textContent='Loading people…';
   try{const ld=new GLTFLoader(),dr=new DRACOLoader();dr.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/');ld.setDRACOLoader(dr);
-    const all=await Promise.race([Promise.all(['person1','person2','person3','person4','anim_idle','anim_jog'].map(n=>ld.loadAsync('models/people/'+n+'.glb'))),new Promise((_,j)=>setTimeout(()=>j(new Error('timeout')),25000))]);
+    const all=await Promise.race([Promise.all(['person1','person2','person3','person4'].map(n=>n+(LOW?'':'_hd')).concat(['anim_idle','anim_jog']).map(n=>ld.loadAsync('models/people/'+n+'.glb'))),new Promise((_,j)=>setTimeout(()=>j(new Error('timeout')),25000))]);
     const strip=c=>{c.tracks=c.tracks.filter(t=>!/^(root|pelvis)\.position$/.test(t.name));return c};
     const V=all.slice(0,4).map(g=>{const sc=g.scene;sc.traverse(o=>{if(o.isMesh){o.frustumCulled=false;if(o.material){o.material.envMapIntensity=.6}}});sc.updateMatrixWorld(true);
       const hip=sc.getObjectByName('pelvis'),hp=new THREE.Vector3();hip.getWorldPosition(hp);return {scene:sc,hipY:hp.y}});
+    // where skin sits in each avatar's texture, its average colour, and the brightness of hair / top / pants / shoes (measured offline)
+    [[[0,1],[.2355,.1233,.0737],[.0455,.0050,.0032,.1937]],[[0,3],[.1246,.0646,.0371],[.3059,.7893,.0784,.4790]],[[0,3],[.1426,.0703,.0503],[.0231,.5123,.0211,.4782]],[[0,2],[.0217,.0111,.0078],[.0260,.0318,.2492,.1532]]].forEach(([t,sk,lm],i)=>Object.assign(V[i],{skinT:t,skin:sk,lum:lm}));
     diag('people loaded: '+V.length+' avatars');return {V,idle:strip(all[4].animations[0]),jog:strip(all[5].animations[0])}}
   catch(e){diag('people failed to load, using mannequins: '+(e.message||e));return null}finally{$('load').textContent='Building the valley…'}})();
 const Y180=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),Math.PI);
@@ -518,6 +522,27 @@ function makeReal(vi,scl=1){const v=HUM.V[vi%HUM.V.length],m=SkeletonUtils.clone
     const hd=Q(u.head.rotation).multiply(rw.head);setW('head',hd,parentRest.head)};
   g.userData=u;u.model=m;return g}
 function realMixer(g){const mx=new THREE.AnimationMixer(g.userData.model),idle=mx.clipAction(HUM.idle),walk=mx.clipAction(HUM.jog);idle.play();walk.play();walk.setEffectiveWeight(0);idle.time=Math.random()*3;walk.time=Math.random();return {mx,idle,walk}}
+
+// ---------- endless variety: each person gets their own skin tone, hair colour and clothes (recoloured parts of the avatar's texture) ----------
+const LOOK={top:[0xf2f2ee,0x1c1c1e,0x1f2c4a,0x7d8086,0x9da0a6,0x9e2a2b,0x5c1f2a,0x2f4a35,0x59603a,0xc49a2c,0xc8b79a,0x9fb8d6,0x4a6a8c,0xd99aa8,0x2c6b6e,0x6b4a33,0xe8dcc8,0x3a3f4a],
+  pants:[0x3b4f6e,0x1f2a3d,0x18181a,0xb0a07a,0x5a5d63,0x1f2a44,0x4a3a2c,0x7a90ad,0x2e3240,0x6b6250],shoes:[0xe8e8e4,0x151515,0x4a3222,0x8a8c8f,0x223044,0x6b4a33],
+  hair:[0x0e0b09,0x0e0b09,0x2a1b12,0x2a1b12,0x4a2e1c,0x7a5536,0xb08d57,0xd8c9a2,0x6e2c17,0x8a8782,0xc9c7c2],skin:[0xf2d0b5,0xe6b896,0xd4a07a,0xb67f58,0x8f5c3c,0x6b4128,0x4a2a19]};
+const pick=a=>a[(Math.random()*a.length)|0];
+function randLook(){return {skin:Math.random()<.25?null:pick(LOOK.skin),hair:pick(LOOK.hair),top:pick(LOOK.top),pants:pick(LOOK.pants),shoes:pick(LOOK.shoes)}}
+function dress(g,vi,look){const v=HUM.V[vi%HUM.V.length],L=Object.assign(randLook(),look||{}),lin=h=>new THREE.Color(h);
+  const sk=L.skin==null?new THREE.Vector3(1,1,1):(c=>new THREE.Vector3(clamp(c.r/v.skin[0],.15,4),clamp(c.g/v.skin[1],.15,4),clamp(c.b/v.skin[2],.15,4)))(lin(L.skin));
+  const U={uSkin:{value:sk},uSkinT:{value:new THREE.Vector2(...v.skinT)},uLum:{value:new THREE.Vector4(...v.lum)},uHair:{value:lin(L.hair)},uTop:{value:lin(L.top)},uPants:{value:lin(L.pants)},uShoes:{value:lin(L.shoes)}};
+  g.userData.model.traverse(o=>{if(!o.isMesh||!o.material||!o.material.map)return;const m=o.material.clone();m.customProgramCacheKey=()=>'dress';
+    m.onBeforeCompile=sh=>{Object.assign(sh.uniforms,U);sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 uSkin,uHair,uTop,uPants,uShoes;uniform vec4 uLum;uniform vec2 uSkinT;')
+      .replace('#include <map_fragment>',`#include <map_fragment>
+{vec2 tq=floor(clamp(fract(vMapUv),0.,.9999)*3.);float id=tq.x+tq.y*3.,l=dot(diffuseColor.rgb,vec3(.2126,.7152,.0722));
+ if(abs(id-uSkinT.x)<.5||abs(id-uSkinT.y)<.5)diffuseColor.rgb*=uSkin;
+ else if(abs(id-4.)<.5)diffuseColor.rgb=uHair*mix(1.,clamp(l/uLum.x,.25,2.2),.8);
+ else if(abs(id-5.)<.5)diffuseColor.rgb=uTop*mix(1.,clamp(l/max(uLum.y,.02),.35,1.7),.55);
+ else if(abs(id-6.)<.5)diffuseColor.rgb=uPants*mix(1.,clamp(l/max(uLum.z,.02),.35,1.7),.55);
+ else if(abs(id-7.)<.5)diffuseColor.rgb=uShoes*mix(1.,clamp(l/max(uLum.w,.02),.35,1.7),.55);}`)};o.material=m});
+  const s2=.94+Math.random()*.12;g.userData.model.scale.multiplyScalar(s2);g.userData.model.position.y*=s2;return g}
+
 const REALPOSE=[];// posed avatars (pilot) re-applied every frame
 
 // ---------- people: proper proportions, faces, hair and clothes built from smooth shapes ----------
@@ -577,7 +602,7 @@ function seatedPerson(o,x,y,z,r,out){const P=[];torsoParts(o,P);const H=[];headP
   P.forEach(g=>{g.translate(x,y,z);out.push(g)})}
 // the captain: same body but jointed so he can be grabbed, carried and thrown
 const PILOT_O={female:false,hairStyle:0,skin:0xeac3a2,hair:0x7a7a74,eyes:0x3d5a72,lips:0xb88a78,shirt:0xf7f7f4,sleeves:0,pants:0x1b2a4a,shoes:0x0d0d0d,build:1.05,glasses:false,beard:false,collar:true,tie:true,epaulets:true,hat:true};
-function makePilot(){if(!HUM)return makeJointed(PILOT_O);const g=makeReal(0);REALPOSE.push(g);
+function makePilot(){if(!HUM)return makeJointed(PILOT_O);const g=dress(makeReal(0),0,{top:0xf4f4f2,pants:0x1b2540,shoes:0x111111,hair:0x6a6560,skin:null});REALPOSE.push(g);
   const hb=g.userData.model.getObjectByName('head');g.updateMatrixWorld(true);const hp=new THREE.Vector3();hb.getWorldPosition(hp);
   const C=[];headParts(Object.assign({},PILOT_O,{hairStyle:2,beard:false,glasses:false}),[]);// (just for colours)
   const cap=new THREE.Group(),nv=LM(0x1b2a4a,.25,{roughness:.6}),gold=LM(0xe0b84a,.3,{metalness:.6,roughness:.3});
@@ -677,8 +702,8 @@ const BEACON=new THREE.Mesh(new THREE.SphereGeometry(.15,8,6),new THREE.MeshBasi
   seatPos.forEach(([x,z],i)=>{base.setMatrixAt(i,m.makeTranslation(x,-.45,z));back.setMatrixAt(i,m.makeTranslation(x,-.07,z+.22));head.setMatrixAt(i,m.makeTranslation(x,.2,z+.22))});INNER.add(base,back,head);
   // passengers (all merged into one mesh)
   {const pas=seatPos.filter(([x,z,r])=>!(r===12&&x===.65)&&rnd()<(LOW&&HUM?.45:.66));
-    if(HUM)pas.forEach(([x,z],i)=>{const m=makeReal(i,.93),u=m.userData;u.legL.rotation.x=u.legR.rotation.x=Math.PI/2-.05;u.legL.userData.knee.rotation.x=u.legR.userData.knee.rotation.x=-Math.PI/2+.12;
-      u.legL.rotation.z=-.06;u.legR.rotation.z=.06;u.armL.rotation.x=u.armR.rotation.x=.25+rnd()*.15;u.armL.userData.knee.rotation.x=u.armR.userData.knee.rotation.x=.9+rnd()*.3;u.armL.rotation.z=-.1;u.armR.rotation.z=.1;
+    if(HUM)pas.forEach(([x,z],i)=>{const vi=(Math.random()*4)|0,m=dress(makeReal(vi,.93),vi),u=m.userData;u.legL.rotation.x=u.legR.rotation.x=Math.PI/2-.05;u.legL.userData.knee.rotation.x=u.legR.userData.knee.rotation.x=-Math.PI/2+.12;
+      u.legL.rotation.z=-.06;u.legR.rotation.z=.06;u.armL.rotation.x=u.armR.rotation.x=.3+rnd()*.15;u.armL.userData.knee.rotation.x=u.armR.userData.knee.rotation.x=1.05+rnd()*.25;u.armL.rotation.z=-.1;u.armR.rotation.z=.1;
       u.head.rotation.y=(rnd()-.5)*.8;u.head.rotation.x=-(rnd()*.25);u.apply();m.position.set(x,-.38,z+.04);m.traverse(o=>{if(o.isMesh)o.castShadow=false});INNER.add(m)});
     else{const G=[];pas.forEach(([x,z])=>seatedPerson(randPerson(rnd),x,-.3,z+.08,rnd,G));const pm=new THREE.Mesh(mergeGeometries(G),humanMat);pm.castShadow=pm.receiveShadow=true;INNER.add(pm)}}
   const ife=canvasTex(128,80,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#0b2a4a');gr.addColorStop(1,'#123d2a');g.fillStyle=gr;g.fillRect(0,0,w,h);g.strokeStyle='#ffd36b';g.lineWidth=2;g.beginPath();g.moveTo(20,60);g.quadraticCurveTo(60,20,108,24);g.stroke();g.fillStyle='#fff';g.font='10px sans-serif';g.fillText('PNC  →  PNC',8,74)});
@@ -779,6 +804,7 @@ function audioTick(){if(!AC)return;
   if(st==='fly'&&F.mode!=='crashed'){const ins=view==='cockpit',th=F.thr,sp=F.speed/250;
     at(A.eLP.frequency,ins?220+th*500:300+th*1600);at(A.eG.gain,(ins?.35:.25)+th*.45);at(A.hG.gain,.05+th*.06);at(A.hum.frequency,50+th*30);at(A.whG.gain,ins?.005+th*.01:.015+th*.035);at(A.wh.frequency,600+th*1100);at(A.wG.gain,(ins?.04:.12)+sp*(ins?.15:.45));at(A.wBP.frequency,500+sp*1400)}
   else if(st==='fly'){at(A.eG.gain,0,.3);at(A.hG.gain,0,.3);at(A.whG.gain,0,.3);at(A.wG.gain,0,.3)}
+  else if(st==='takeoff'&&F.mode==='takeoff'){const k=clamp(TO.v/90,0,1);at(A.eLP.frequency,260+k*700+(TO.t>1.5?200:0));at(A.eG.gain,.35+Math.min(TO.t/2,1)*.45);at(A.hG.gain,.06+k*.05);at(A.hum.frequency,55+k*35);at(A.whG.gain,.006+k*.012);at(A.wh.frequency,700+k*1200);at(A.wG.gain,.05+k*.12);at(A.wBP.frequency,500+k*900)}
   else if(st==='throwing'){at(A.eLP.frequency,900);at(A.eG.gain,.5);at(A.wG.gain,.5);at(A.whG.gain,.03);at(A.hG.gain,.05)}
   else if(st==='gate'){at(A.eLP.frequency,320);at(A.eG.gain,.12);at(A.hG.gain,.02);at(A.whG.gain,.006);at(A.wG.gain,.05);at(A.wBP.frequency,600)}
   else{const w=winOpen?.75:.035;at(A.eLP.frequency,winOpen?900:230);at(A.eG.gain,.5);at(A.hG.gain,.045);at(A.whG.gain,.004);at(A.wG.gain,w);at(A.wBP.frequency,winOpen?1100:500)}}
@@ -798,6 +824,7 @@ cv.addEventListener('mousedown',e=>{drag={x:e.clientX,y:e.clientY}});addEventLis
 addEventListener('mousemove',e=>{let dx=0,dy=0;if(document.pointerLockElement===cv){dx=e.movementX;dy=e.movementY}else if(drag){dx=e.clientX-drag.x;dy=e.clientY-drag.y;drag={x:e.clientX,y:e.clientY}}else return;look(dx,dy)});
 function look(dx,dy){const s=.0024;if(st==='fly'&&view==='chase'){orb.y-=dx*s;orb.p=clamp(orb.p-dy*s,-1.2,.6);orb.t=2.2}else{yaw-=dx*s;pitch=clamp(pitch-dy*s,-1.4,1.4)}}
 // touch
+let runT=false;const sprinting=()=>keys.ShiftLeft||keys.ShiftRight||runT;
 const stick={x:0,y:0,id:null,ox:0,oy:0},lk={id:null,x:0,y:0},btn={up:false,dn:false};
 if(TOUCH){document.body.classList.add('touch');$('again').textContent='🛬 Back to the airport';const ts=$('tstick'),kn=$('tknob');
   ts.addEventListener('touchstart',e=>{e.preventDefault();const t=e.changedTouches[0];stick.id=t.identifier;const r=ts.getBoundingClientRect();stick.ox=r.left+r.width/2;stick.oy=r.top+r.height/2;mv(t)},{passive:false});
@@ -806,7 +833,7 @@ if(TOUCH){document.body.classList.add('touch');$('again').textContent='🛬 Back
   const end=e=>{for(const t of e.changedTouches){if(t.identifier===stick.id){stick.id=null;stick.x=stick.y=0;kn.style.transform=''}if(t.identifier===lk.id)lk.id=null}};addEventListener('touchend',end);addEventListener('touchcancel',end);
   $('tlook').addEventListener('touchstart',e=>{e.preventDefault();const t=e.changedTouches[0];lk.id=t.identifier;lk.x=t.clientX;lk.y=t.clientY},{passive:false});
   const tap=(id,fn)=>$(id).addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();fn()},{passive:false});
-  tap('bAct',()=>{if(st==='fly'){if(F.mode==='crashed')respawn();else if(F.mode!=='air')F.brk=!F.brk}else act()});tap('bCam',toggleView);tap('bGear',toggleGear);
+  tap('bRun',()=>{runT=!runT;$('bRun').classList.toggle('on',runT)});tap('bAct',()=>{if(st==='fly'){if(F.mode==='crashed')respawn();else if(F.mode!=='air')F.brk=!F.brk}else act()});tap('bCam',toggleView);tap('bGear',toggleGear);
   ['bUp','bDn'].forEach(id=>{$(id).addEventListener('touchstart',e=>{e.preventDefault();btn[id==='bUp'?'up':'dn']=true},{passive:false});$(id).addEventListener('touchend',e=>{e.preventDefault();btn[id==='bUp'?'up':'dn']=false})})}
 
 // ================= story actions =================
@@ -816,6 +843,7 @@ function currentAction(){
   if(st==='gate'){if(GATE.sit)return {t:'Stand up',fn:standUp};if(Math.hypot(eye.x-GATE.foot.x,eye.z-GATE.foot.z)<3.2)return {t:'Climb aboard',fn:boardAgain};
     const lx=eye.x-GATE.A.x,lz=eye.z-GATE.A.z,ud=GATE.grp.userData;for(const sh of ud.shops)if(Math.hypot(sh.lx-lx,sh.lz-lz)<1.7)return {t:sh.t,fn:()=>{banner(sh.msg[0],sh.msg[1],2.4);tone(880,0,.15,'sine',.12);tone(1320,.12,.25,'sine',.12)}};
     let best=null,bd=1.15;for(const s2 of ud.seats){if(s2.npc)continue;const d=Math.hypot(s2.lx-lx,s2.lz-lz);if(d<bd){bd=d;best=s2}}return best?{t:best.cafe?'Sit at the café table':'Sit down',fn:()=>sitAt(best)}:null}
+  if(st==='takeoff')return null;
   if(st==='seated')return {t:'Get out of your seat',fn:()=>{st='rising';anim={t:0,d:.8,from:eye.clone(),to:new THREE.Vector3(0,.72,PLAYER_SEAT.z),done:()=>{st='walk';objective('Walk to the front of the plane — the cockpit door.')}}}};
   if(st!=='walk')return null;const x=eye.x,z=eye.z,d=(a,b)=>Math.hypot(x-a,z-b);
   if(boarding)return d(0,PLAYER_SEAT.z)<1?{t:'Sit in your seat (13C)',fn:()=>{st='sitting';boarding=false;anim={t:0,d:.9,from:eye.clone(),to:new THREE.Vector3(PLAYER_SEAT.x,.2,PLAYER_SEAT.z),done:takeOff};yawTo=0}}:null;
@@ -940,21 +968,21 @@ const NAV=(()=>{const N=[],adj=[],node=(x,z,wait,face)=>{N.push({x,z,wait,face})
   const out=node(0,-55,true);link(out,Wn[0]);return {N,adj}})();
 const CREW=(()=>{const N=[[-14,22],[-14,58],[16,58],[16,22]].map(([x,z])=>({x,z,wait:true}));return {N,adj:[[1,3],[0,2],[1,3],[2,0]]}})();
 function buildPeople(g){const P2=[],seats=g.userData.seats;let sd=4242;const r=()=>{sd=(sd*16807)%2147483647;return (sd-1)/2147483646};
-  let vi=0;const person=o=>{if(!HUM)return makeJointed(o);const m=makeReal(vi++);return m};
-  const mk=(o,nav,at)=>{const m=person(o);m.traverse(q=>{if(q.isMesh)q.castShadow=false});const sc=.92+r()*.14;m.scale.setScalar(sc);const n0=nav.N[at];
-    const p={g:m,nav,to:at,from:at,x:n0.x,z:n0.z,yaw:0,sp:HUM?1.15+r()*.3:1.05+r()*.5,ph:r()*6,wait:r()*3,sc};if(r()<.45&&nav===NAV){const bag=new THREE.Mesh(new RoundedBoxGeometry(.38,.55,.24,2,.04),LM([0x1d1d22,0x2f4a6b,0x7a2f2f,0x3a3a3a][(r()*4)|0],.25,{roughness:.5}));bag.position.set(.34,-.62,.32);bag.rotation.x=-.35;m.add(bag);p.bag=bag}if(HUM)p.mix=realMixer(m);g.add(m);P2.push(p);return p};
-  const W=LOW?7:15;for(let i=0;i<W;i++)mk(randPerson(r),NAV,(r()*NAV.N.length)|0);
-  for(let i=0;i<2;i++){const o=randPerson(r);o.shirt=0xff7a1a;o.pants=0x2a2f38;o.sleeves=1;mk(o,CREW,i*2)}
-  const free=seats.slice().sort(()=>r()-.5);for(let i=0;i<(LOW?6:16)&&i<free.length;i++){const st2=free[i];if(r()<.15)continue;st2.npc=true;const m=person(randPerson(r));m.traverse(q=>{if(q.isMesh)q.castShadow=false});
-    const u=m.userData;u.legL.rotation.x=u.legR.rotation.x=Math.PI/2;u.legL.userData.knee.rotation.x=u.legR.userData.knee.rotation.x=-Math.PI/2;u.armL.rotation.x=u.armR.rotation.x=.9+r()*.3;if(HUM){u.armL.userData.knee.rotation.x=u.armR.userData.knee.rotation.x=.5;u.armL.rotation.z=-.15;u.armR.rotation.z=.15;u.apply()}
+  const person=(o,look)=>{if(!HUM)return makeJointed(o);const vi=(Math.random()*4)|0;return dress(makeReal(vi),vi,look)};
+  const mk=(o,nav,at,look)=>{const m=person(o,look);m.traverse(q=>{if(q.isMesh)q.castShadow=false});const sc=.92+r()*.14;m.scale.setScalar(sc);const n0=nav.N[at];
+    const p={g:m,nav,to:at,from:at,x:n0.x,z:n0.z,yaw:0,sp:HUM?1.45+r()*.4:1.25+r()*.5,ph:r()*6,wait:r()*3,sc};if(r()<.45&&nav===NAV){const bag=new THREE.Mesh(new RoundedBoxGeometry(.38,.55,.24,2,.04),LM([0x1d1d22,0x2f4a6b,0x7a2f2f,0x3a3a3a][(r()*4)|0],.25,{roughness:.5}));bag.position.set(.34,-.62,.32);bag.rotation.x=-.35;m.add(bag);p.bag=bag}if(HUM)p.mix=realMixer(m);g.add(m);P2.push(p);return p};
+  const W=LOW?10:26;for(let i=0;i<W;i++)mk(randPerson(r),NAV,(r()*NAV.N.length)|0);
+  for(let i=0;i<3;i++){const o=randPerson(r);o.shirt=0xff7a1a;o.pants=0x2a2f38;o.sleeves=1;mk(o,CREW,i%4,{top:0xff6a10,pants:0x2a2f38,shoes:0x151515})}
+  const free=seats.slice().sort(()=>r()-.5);for(let i=0;i<(LOW?8:24)&&i<free.length;i++){const st2=free[i];if(r()<.15)continue;st2.npc=true;const m=person(randPerson(r));m.traverse(q=>{if(q.isMesh)q.castShadow=false});
+    const u=m.userData;u.legL.rotation.x=u.legR.rotation.x=Math.PI/2;u.legL.userData.knee.rotation.x=u.legR.userData.knee.rotation.x=-Math.PI/2;u.armL.rotation.x=u.armR.rotation.x=.3+r()*.2;if(HUM){u.armL.userData.knee.rotation.x=u.armR.userData.knee.rotation.x=1.1;u.armL.rotation.z=-.15;u.armR.rotation.z=.15;u.apply()}
     m.position.set(st2.lx+Math.sin(st2.yaw)*.06,.55,st2.lz+Math.cos(st2.yaw)*.06);m.rotation.y=st2.yaw;g.add(m);P2.push({g:m,sit:true,ph:r()*6})}
   // staff behind every counter
   const staff=[[-46,-87.1,{shirt:0x1d1d1f,apron:0x2f5a34,sleeves:1},'barista'],[-9.25,-85.4,{shirt:0x14294a,badge:true,sleeves:0},'clerk'],[35.75,-85.4,{shirt:0x2f6b72,badge:true,sleeves:0},'clerk'],[8,-87.2,{shirt:0xf4f4f2,blazer:0x14294a,badge:true,collar:true,sleeves:1,pants:0x14294a},'agent']];
-  staff.forEach(([x,z,look,job])=>{const o=Object.assign(randPerson(r),look);if(job==='agent')o.shirt=0x14294a;const m=person(o);m.traverse(q=>{if(q.isMesh)q.castShadow=false});m.position.set(x,.95,z);m.rotation.y=Math.PI;g.add(m);P2.push({g:m,staff:job,ph:r()*6,x,z,mix:HUM?realMixer(m):null})});
+  staff.forEach(([x,z,look,job])=>{const o=Object.assign(randPerson(r),look);if(job==='agent')o.shirt=0x14294a;const m=person(o,{barista:{top:0x1c1c1e,pants:0x18181a},clerk:{top:look.shirt,pants:0x1f2a3d},agent:{top:0x14294a,pants:0x14294a,shoes:0x111111}}[job]);m.traverse(q=>{if(q.isMesh)q.castShadow=false});m.position.set(x,.95,z);m.rotation.y=Math.PI;g.add(m);P2.push({g:m,staff:job,ph:r()*6,x,z,mix:HUM?realMixer(m):null})});
   g.userData.people=P2}
 function peopleTick(dt,t){const g=GATE.grp;if(!g||!g.visible||camera.position.distanceTo(GATE.A)>900)return;
   for(const n of g.userData.people){const u=n.g.userData;
-    if(n.mix){const moving=!n.staff&&!(n.wait>0),w=n.mix.walk.getEffectiveWeight(),tw=moving?1:0,nw=w+(tw-w)*Math.min(1,dt*5);n.mix.walk.setEffectiveWeight(nw);n.mix.idle.setEffectiveWeight(1-nw);n.mix.walk.timeScale=n.sp/1.9;n.mix.mx.update(dt)}
+    if(n.mix){const moving=!n.staff&&!(n.wait>0),w=n.mix.walk.getEffectiveWeight(),tw=moving?1:0,nw=w+(tw-w)*Math.min(1,dt*5);n.mix.walk.setEffectiveWeight(nw);n.mix.idle.setEffectiveWeight(1-nw);n.mix.walk.timeScale=n.sp/2.1;n.mix.mx.update(dt)}
     if(n.staff){const k=t+n.ph;if(n.mix){n.g.rotation.y=Math.PI+Math.sin(k*.23)*.3;n.g.position.x=n.x+Math.sin(k*.3)*.25;continue}u.head.rotation.y=Math.sin(k*.4)*.5;n.g.rotation.y=Math.PI+Math.sin(k*.23)*.25;
       if(n.staff==='barista'){u.armR.rotation.x=1.1+Math.sin(k*2.2)*.25;u.armL.rotation.x=.7+Math.sin(k*1.3)*.2}else if(n.staff==='agent'){u.armL.rotation.x=u.armR.rotation.x=.9+Math.sin(k*6)*.04}else{u.armR.rotation.x=.4+Math.max(0,Math.sin(k*.7))*.6;u.armL.rotation.x=.15}
       n.g.position.x=n.x+Math.sin(k*.3)*.25;continue}
@@ -986,15 +1014,37 @@ function goToGate(first){$('crash').style.display='none';const name=RW.on?'LAKE 
 function relocateGate(){if(F.mode!=='parked'||!GATE.grp)return;const name='LAKE TAHOE AIRPORT';if(GATE.name!==name){scene.remove(GATE.grp);GATE.grp=buildGate(name);GATE.name=name}
   const old=GATE.A.clone();GATE.A.copy(gateSpot());parkPlane();if(GATE.sit)standUp();STAIRS.visible=st==='gate';if(st==='gate')eye.add(GATE.A.clone().sub(old))}
 function gateWalk(dt){if(GATE.sit){eye.copy(GATE.sitEye);return}let mx=0,mz=0;if(keys.KeyW||keys.ArrowUp)mz+=1;if(keys.KeyS||keys.ArrowDown)mz-=1;if(keys.KeyA)mx-=1;if(keys.KeyD)mx+=1;if(keys.ArrowLeft)yaw+=dt*1.8;if(keys.ArrowRight)yaw-=dt*1.8;
-  if(TOUCH){mx+=stick.x;mz-=stick.y}const l=Math.hypot(mx,mz);if(l>1){mx/=l;mz/=l}const sp=(keys.ShiftLeft||keys.ShiftRight?6:3.2)*dt,fx=-Math.sin(yaw),fz=-Math.cos(yaw),rx=Math.cos(yaw),rz=-Math.sin(yaw);
+  if(TOUCH){mx+=stick.x;mz-=stick.y}const l=Math.hypot(mx,mz);if(l>1){mx/=l;mz/=l}const sp=(sprinting()?7.5:4.2)*dt,fx=-Math.sin(yaw),fz=-Math.cos(yaw),rx=Math.cos(yaw),rz=-Math.sin(yaw);
   let lx=eye.x-GATE.A.x,lz=eye.z-GATE.A.z;const dx=(fx*mz+rx*mx)*sp,dz=(fz*mz+rz*mx)*sp;if(!gateBlocked(lx+dx,lz))lx+=dx;if(!gateBlocked(lx,lz+dz))lz+=dz;eye.x=GATE.A.x+lx;eye.z=GATE.A.z+lz;
   eye.y=GATE.A.y+1.7+(l>.1?Math.sin(performance.now()/150)*.03:0)}
-function boardAgain(){st='walk';boarding=true;setInside(true);eye.set(-.2,.72,-8.3);yaw=Math.PI;pitch=-.05;
+function boardAgain(){faSetup();st='walk';boarding=true;setInside(true);eye.set(-.2,.72,-8.3);yaw=Math.PI;pitch=-.05;
   objective('Find your seat — row 13, aisle seat on the left as you walk back — and sit down.');banner('Welcome aboard','Please take your seat',2.2);ding();say('Welcome aboard, folks!',2.2)}
 const fade=(cb)=>{const f=$('fade');f.style.opacity=1;setTimeout(()=>{cb();setTimeout(()=>f.style.opacity=0,350)},900)};
-function takeOff(){st='takeoff';tone(90,0,2.5,'sawtooth',.06,160);
-  fade(()=>{STAIRS.visible=false;F.mode='auto';AP.a=Math.PI*.5;autopilot(0);st='seated';yaw=-.95;pitch=-.12;ding();
-    banner('Pinecrest Air · Flight 22',RW.on?'Cruising over Lake Tahoe':'Cruising over Silverpine Lake',3);objective('You\'re a passenger… but you want to fly this plane. Get out of your seat!')})}
+// ---------- a real takeoff, watched from your seat: line up, full power, roll, rotate, lift off, gear up, climb ----------
+const TO={t:0,v:0,ph:'',x:0,z:0,y:0,hd:0,p:0,y0:0};
+function runwayLine(){if(RW.on){// Lake Tahoe Airport, runway 36 (true heading ≈ 013°)
+    const [x0,z0]=ll2xz(38.8835,-119.9962),hd=-13*Math.PI/180;return {x:x0,z:z0,hd,h:(x,z)=>{const e=demElev(x,z);return e===null?0:e}}}
+  return {x:RWY.x,z:RWY.z+RWY.len/2-80,hd:0,h:()=>RWY.h}}
+function takeOff(){st='takeoff';fade(()=>{STAIRS.visible=false;const L=runwayLine();Object.assign(TO,{t:0,v:0,ph:'roll',x:L.x,z:L.z,hd:L.hd,p:0,L,climb:0});
+    F.mode='takeoff';F.gear=1;F.gearT=1;GEAR.visible=true;GEAR.scale.y=1;TO.y=L.h(L.x,L.z)+3.4;placeTO();yaw=-1.15;pitch=-.08;
+    banner('Cleared for takeoff','Flight 22 — please remain seated',3);objective('Sit back and enjoy the takeoff… then make your move.');say('Flight attendants, prepare for takeoff.',2.6)})}
+function placeTO(){P.position.set(TO.x,TO.y,TO.z);P.quaternion.setFromEuler(EUL.set(TO.p,TO.hd,0))}
+function takeoffTick(dt){TO.t+=dt;const L=TO.L,fx=-Math.sin(TO.hd),fz=-Math.cos(TO.hd);
+  if(TO.ph==='roll'){if(TO.t>2)TO.v=Math.min(TO.v+3.6*dt,90);TO.x+=fx*TO.v*dt;TO.z+=fz*TO.v*dt;TO.y=L.h(TO.x,TO.z)+3.4;
+    shake=Math.max(shake,.05+TO.v/900);if(TO.v>68){TO.p=Math.min(TO.p+dt*.09,.16)}if(TO.p>.12){TO.ph='climb';TO.ct=0;tone(140,0,1.2,'sine',.04,90)}}
+  else{TO.ct+=dt;TO.v=Math.min(TO.v+1.5*dt,110);TO.x+=fx*TO.v*dt;TO.z+=fz*TO.v*dt;TO.y+=Math.sin(TO.p)*TO.v*dt;if(TO.ct>3)F.gear=0;
+    if(TO.ct>14&&!TO.done){TO.done=true;fade(()=>{F.mode='auto';AP.a=Math.PI*.5;autopilot(0);st='seated';yaw=-.95;pitch=-.12;ding();
+      banner('Pinecrest Air · Flight 22',RW.on?'Cruising over Lake Tahoe':'Cruising over Silverpine Lake',3);objective('You\'re a passenger… but you want to fly this plane. Get out of your seat!')})}}
+  F.gearT+=((F.gear?1:0)-F.gearT)*Math.min(1,dt*1.2);GEAR.visible=F.gearT>.05;GEAR.scale.y=Math.max(.05,F.gearT);placeTO()}
+// ---------- flight attendant: greets you at the door, then walks the aisle during the flight ----------
+const FA={g:null,mix:null,z:-7.6,dir:1,wait:0};
+function faSetup(){if(!HUM||FA.g)return;FA.g=dress(makeReal(1,.97),1,{top:0x14294a,pants:0x14294a,shoes:0x111111,hair:0x2a1b12});FA.mix=realMixer(FA.g);FA.g.traverse(o=>{if(o.isMesh)o.castShadow=false});INNER.add(FA.g);FA.g.position.set(.25,.02,-7.6);FA.g.rotation.y=Math.PI}
+function faTick(dt){if(!FA.g||!INNER.visible)return;const cruising=st==='walk'&&!boarding||st==='seated'||st==='rising'||st==='sitting'&&!boarding;
+  let moving=false;if(cruising&&pil!=='windup'){if(FA.wait>0)FA.wait-=dt;else{const near=Math.abs(eye.z-FA.z)<1.1&&st==='walk'&&Math.sign(eye.z-FA.z)===FA.dir;if(!near){FA.z+=FA.dir*1.1*dt;moving=true}
+      if(FA.z>8.3||FA.z<-7.8){FA.dir*=-1;FA.wait=3+Math.random()*4;FA.z=clamp(FA.z,-7.8,8.3)}}}
+  else{FA.z+=(-7.6-FA.z)*Math.min(1,dt*2)}
+  const ty=moving?(FA.dir>0?0:Math.PI):Math.PI;let d=ty-FA.g.rotation.y;d=Math.atan2(Math.sin(d),Math.cos(d));FA.g.rotation.y+=d*Math.min(1,dt*5);
+  FA.g.position.set(moving?0:.25,.02,FA.z);const w=FA.mix.walk.getEffectiveWeight(),nw=w+((moving?1:0)-w)*Math.min(1,dt*5);FA.mix.walk.setEffectiveWeight(nw);FA.mix.idle.setEffectiveWeight(1-nw);FA.mix.walk.timeScale=.55;FA.mix.mx.update(dt)}
 function respawn(){goToGate()}
 
 // ================= flight =================
@@ -1116,7 +1166,7 @@ if(!/procedural/.test(location.search)){$('rwstat').textContent='🌍 Loading th
 const chaseQ=new THREE.Quaternion();
 function walk(dt){let mx=0,mz=0;if(keys.KeyW||keys.ArrowUp)mz+=1;if(keys.KeyS||keys.ArrowDown)mz-=1;if(keys.KeyA)mx-=1;if(keys.KeyD)mx+=1;if(keys.ArrowLeft)yaw+=dt*1.8;if(keys.ArrowRight)yaw-=dt*1.8;
   if(TOUCH){mx+=stick.x;mz-=stick.y}const l=Math.hypot(mx,mz);if(l>1){mx/=l;mz/=l}
-  const sp=2.3*dt,fx=-Math.sin(yaw),fz=-Math.cos(yaw),rx=Math.cos(yaw),rz=-Math.sin(yaw);
+  const sp=(sprinting()?5.2:3.1)*dt,fx=-Math.sin(yaw),fz=-Math.cos(yaw),rx=Math.cos(yaw),rz=-Math.sin(yaw);
   let nx=eye.x+(fx*mz+rx*mx)*sp,nz=eye.z+(fz*mz+rz*mx)*sp;const oz=eye.z;
   const cross=(oz>-9)!==(nz>-9);if(cross&&!(doorT>.6&&Math.abs(nx)<.36))nz=oz>-9?-8.75:-9.25;
   if(nz>-9){nz=Math.min(nz,10.6);if(nz<-8.75&&!(doorT>.6))nz=-8.75;const half=nz>8.75?1.15:(nz<-8.55?.36:.36);nx=clamp(nx,-half,half)}
@@ -1183,19 +1233,19 @@ function bubbleTick(dt){const b=$('bubble');if(bubT<=0){b.style.display='none';r
 
 let last=performance.now(),pfdN=0;
 function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last)/1000);last=now;const t=now/1000;
-  if(st==='fly'){flyInput(dt);if(F.mode==='air')flyAir(dt);else if(F.mode==='ground'||F.mode==='water')flyGround(dt)}else if(F.mode!=='parked')autopilot(dt);
+  if(st==='fly'){flyInput(dt);if(F.mode==='air')flyAir(dt);else if(F.mode==='ground'||F.mode==='water')flyGround(dt)}else if(st==='takeoff'&&F.mode==='takeoff')takeoffTick(dt);else if(F.mode!=='parked'&&F.mode!=='takeoff')autopilot(dt);
   BEACON.visible=(t%1.2)<.12;{const ph=t%1.3;STROBES.forEach(s=>s.visible=ph<.06||(ph>.16&&ph<.21))}
   {const fl=st==='fly'&&F.mode!=='crashed',c=F.ctl;SURF.ail.forEach(([sx,pv])=>pv.rotation.x=fl?-sx*c.r*.35:0);SURF.elev.forEach(pv=>pv.rotation.x=fl?-c.p*.4:0);SURF.rud.rotation.y=fl?c.y*.4:0;SURF.flap.forEach(pv=>pv.rotation.x=F.gearT*.42)}
   if(st==='rising'||st==='sitting'){anim.t+=dt;const k=sstep(0,1,anim.t/anim.d);eye.lerpVectors(anim.from,anim.to,k);if(yawTo!==null){yaw+=(yawTo-yaw)*Math.min(1,dt*4);pitch*=1-Math.min(1,dt*4)}if(anim.t>=anim.d){const d=anim.done;anim=null;yawTo=null;d()}}
   if(st==='walk')walk(dt);else if(st==='gate')gateWalk(dt);
-  peopleTick(dt,t);
+  peopleTick(dt,t);faTick(dt);
   if(doorOpen)doorT=Math.min(1,doorT+dt*4);DOOR.rotation.y=sstep(0,1,doorT)*1.7;
   winT=clamp(winT+(winOpen?dt*2.5:-dt*2),0,1);WIN_PANE.position.z=-10.9+winT*.95;
   setInside(st!=='throwing'&&st!=='gate'&&!(st==='fly'&&view==='chase'));
   pilotTick(dt,t);for(const g of REALPOSE)if(g.visible&&(g.parent===scene||INNER.visible||st==='throwing'))g.userData.apply();cameraTick(dt,t);fxTick(dt);treeUpdate();
   if(INNER.visible&&(pfdN++%2===0))drawPFD();
   const a=st==='walk'||st==='seated'||st==='gate'?currentAction():null;setPrompt(a?a.t:'');$('cross').style.display=(st==='walk'||st==='seated'||st==='gate')&&!TOUCH?'block':'none';
-  if(TOUCH){const b=$('bAct'),fl=st==='fly';b.style.display=fl&&F.mode==='air'?'none':'block';b.textContent=fl?(F.mode==='crashed'?'↻':F.brk?'🛑':'B'):'✋';$('rot').style.display=fl&&innerHeight>innerWidth&&F.mode!=='crashed'?'block':'none'}
+  if(TOUCH){$('bRun').style.display=(st==='walk'||st==='gate')?'block':'none';const b=$('bAct'),fl=st==='fly';b.style.display=fl&&F.mode==='air'?'none':'block';b.textContent=fl?(F.mode==='crashed'?'↻':F.brk?'🛑':'B'):'✋';$('rot').style.display=fl&&innerHeight>innerWidth&&F.mode!=='crashed'?'block':'none'}
   if(st==='fly')hudTick();bubbleTick(dt);if(bannerT>0){bannerT-=dt;if(bannerT<=0)$('banner').style.opacity=0}
   for(const l of LABELS){const d=l.position.distanceTo(camera.position);l.visible=RW.on!==PROC_LABELS.includes(l)&&st==='fly'&&view==='chase'&&d>600&&d<32000}
   if(waterPre)water.material.uniforms.time.value+=dt*.5;else{waterNorm.offset.x+=dt*.0012;waterNorm.offset.y+=dt*.0007}
@@ -1210,7 +1260,7 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight)});
 $('again').onclick=respawn;
 $('go').onclick=()=>{initAudio();$('menu').style.display='none';if(TOUCH){$('touch').style.display='block';try{document.documentElement.requestFullscreen?.().catch(()=>{})}catch(e){}}$('obj').style.display='block';goToGate(true);setTimeout(ding,600)};
-window.__g=()=>({st,pil,eye:eye.toArray(),mode:F.mode,y:P.position.y,prompt:(currentAction()||{}).t});window.__t={eye,act:()=>act(),look:(y,p)=>{yaw=y;pitch=p},P,F,fly:()=>startFlying(),view:v=>{view=v},orb,scene,water,groundH,crash:m=>crash(m),gate:()=>goToGate(),G:GATE,sit:i=>sitAt(GATE.grp.userData.seats[i])};
+window.__g=()=>({st,pil,eye:eye.toArray(),mode:F.mode,y:P.position.y,prompt:(currentAction()||{}).t});window.__t={eye,act:()=>act(),look:(y,p)=>{yaw=y;pitch=p},P,F,fly:()=>startFlying(),TO,view:v=>{view=v},orb,scene,water,groundH,crash:m=>crash(m),gate:()=>goToGate(),G:GATE,sit:i=>sitAt(GATE.grp.userData.seats[i])};
 buildMap();setInside(true);autopilot(0);
 $('load').style.display='none';
 requestAnimationFrame(frame);
